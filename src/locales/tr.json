@@ -13,6 +13,19 @@
     "ok": "Tamam",
     "success": "Başarılı"
   },
+  "welcome": {
+    "title": "UniGym'e Hoş Geldiniz",
+    "subtitle": "Kampüs Spor ve Rekreasyon Merkezi",
+    "description": "Şifresiz hızlı aktivasyon. Öğrenci spor salonu üyeliğinizi başlatmak için ödeme makbuzunuzu tarayın.",
+    "activateViaReceipt": "Makbuz ile Aktive Et",
+    "noCredentials": "Kullanıcı adı veya şifre gerekmez",
+    "featureZeroLoginTitle": "Girişsiz Kurulum",
+    "featureZeroLoginDesc": "Hesap bilgisi veya şifre girmenize gerek yoktur",
+    "featureReceiptTitle": "Makbuz Aktivasyonu",
+    "featureReceiptDesc": "Salona erişim için spor salonu ödeme makbuzunuzu tarayın",
+    "featureOfflineTitle": "%100 Çevrimdışı Hazır",
+    "featureOfflineDesc": "İnternet olmadan da giriş yapın ve antrenmanlarınızı takip edin"
+  },
   "auth": {
     "title": "UniGym'e Hoş Geldiniz",
     "subtitle": "Üniversite kimlik bilgilerinizle giriş yapın",
@@ -62,6 +75,11 @@
     "grantPermission": "İzin Ver",
     "successTitle": "Makbuz Doğrulandı!",
     "successMessage": "Üyelik {{date}} tarihine kadar uzatıldı",
+    "confirmationTitle": "Makbuz Bilgilerini Doğrulayın",
+    "confirmationSubtitle": "Yazıların hatalı okunması durumunda alanları düzenleyebilirsiniz",
+    "confirmAndActivate": "Doğrula ve Aktive Et",
+    "errorAnotherStudent": "Bu makbuz başka bir öğrenciye aittir",
+    "errorAlreadyUsed": "Bu makbuz daha önce kullanılmıştır",
     "errorNameMismatch": "Makbuzdaki isim profilinizle eşleşmiyor",
     "errorDateExpired": "Makbuz tarihi çok eski — son 7 gün içinde olmalı",
     "errorNoDate": "Ödeme tarihi algılanamadı — makbuzu düz tutun",
@@ -90,7 +108,9 @@
     "activeSession": "Antrenman devam ediyor",
     "checkedInAt": "{{time}} girişi yapıldı",
     "sessionEnded": "Seans kaydedildi",
-    "gymVisit": "Spor Salonu Ziyareti"
+    "gymVisit": "Spor Salonu Ziyareti",
+    "entryVerified": "GİRİŞ ONAYLANDI",
+    "accessGranted": "Erişim İzni Verildi"
   },
   "profile": {
     "title": "Profil",
@@ -109,6 +129,10 @@
     "studentNumber": "Öğrenci Numarası",
     "faculty": "Fakülte",
     "enrollmentYear": "Kayıt Yılı",
+    "resetProfile": "Cihaz Profilini Sıfırla",
+    "resetConfirmTitle": "Cihaz Profili Sıfırlansın mı?",
+    "resetConfirmMessage": "Bu işlem öğrenci profilinizi, antrenman geçmişinizi ve üyeliğinizi cihazdan kaldırır. Makbuzunuzu tarayarak dilediğiniz zaman yeniden aktive edebilirsiniz.",
+    "resetConfirmYes": "Sıfırla",
     "logoutConfirmTitle": "Çıkış Yap",
     "logoutConfirmMessage": "Çıkış yapmak istediğinizden emin misiniz? Tekrar giriş yapmanız gerekecek.",
     "logoutConfirmYes": "Çıkış Yap",

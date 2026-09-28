@@ -1,5 +1,5 @@
 // app/(tabs)/index.tsx  — Dashboard / Home Screen
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,27 +9,35 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 
 import { SafeScreen } from '../../src/components/ui/SafeScreen';
 import { Card } from '../../src/components/ui/Card';
+import { Button } from '../../src/components/ui/Button';
 import { MembershipCard } from '../../src/components/membership/MembershipCard';
+import { EntryVerifiedBanner } from '../../src/components/ui/EntryVerifiedBanner';
 import { useThemeColors } from '../../src/hooks/useThemeColors';
 import { useAuthStore } from '../../src/stores/authStore';
-import { useMembership } from '../../src/hooks/useMembership';
-import { useAttendance } from '../../src/hooks/useAttendance';
+import { useMembershipStore } from '../../src/stores/membershipStore';
+import { useSessionStore } from '../../src/stores/sessionStore';
+import { useHistoryStore } from '../../src/stores/historyStore';
 import { hapticService } from '../../src/services/hapticService';
 import { Typography, Spacing, BorderRadius } from '../../src/theme';
-import { getGreetingTime } from '../../src/utils/dateUtils';
-import { Ionicons } from '@expo/vector-icons';
+import { getGreetingTime, formatTime } from '../../src/utils/dateUtils';
 
 export default function DashboardScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const userId = useAuthStore((s) => s.userId);
 
-  const { data: membership, isLoading: membershipLoading } = useMembership();
-  const { data: attendance } = useAttendance();
+  const { membership, isLoading: membershipLoading } = useMembershipStore();
+  const { activeSession, checkIn, checkOut } = useSessionStore();
+  const { records } = useHistoryStore();
+
+  const [showVerifiedBanner, setShowVerifiedBanner] = useState(false);
+  const [checkInTimestamp, setCheckInTimestamp] = useState('');
 
   const firstName = user?.fullName?.split(' ')[0] ?? '';
   const greeting = t('dashboard.greeting', {
@@ -37,8 +45,21 @@ export default function DashboardScreen() {
     name: firstName,
   });
 
-  const totalVisits =
-    attendance?.pages?.flatMap((p) => p.records).length ?? 0;
+  const totalVisits = records.length;
+
+  async function handleCheckIn() {
+    if (!userId) return;
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setCheckInTimestamp(nowTime);
+    hapticService.success();
+    setShowVerifiedBanner(true);
+    await checkIn(userId);
+  }
+
+  async function handleCheckOut() {
+    hapticService.medium();
+    await checkOut();
+  }
 
   function handleScanPress() {
     hapticService.medium();
@@ -87,6 +108,43 @@ export default function DashboardScreen() {
           )}
         </View>
 
+        {/* Check-In / Check-Out Quick Action Bar */}
+        <View style={[styles.sessionBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {activeSession ? (
+            <View style={styles.activeSessionContent}>
+              <View style={styles.activeSessionInfo}>
+                <View style={styles.activeSessionRow}>
+                  <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+                  <Text style={[styles.activeSessionLabel, { color: colors.textPrimary }]}>
+                    {t('history.activeSession')}
+                  </Text>
+                </View>
+                <Text style={[styles.checkedInTime, { color: colors.textSecondary }]}>
+                  {t('history.checkedInAt', { time: formatTime(activeSession.timeIn) })}
+                </Text>
+              </View>
+              <Button
+                label={t('history.checkOut')}
+                variant="danger"
+                size="sm"
+                onPress={handleCheckOut}
+                haptic="medium"
+              />
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.checkInButton, { backgroundColor: colors.surfaceSubtle }]}
+              onPress={handleCheckIn}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="enter-outline" size={20} color={colors.primary} />
+              <Text style={[styles.checkInText, { color: colors.textPrimary }]}>
+                {t('history.checkIn')}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Stats Row */}
         <View style={styles.statsRow}>
           <Card style={styles.statCard}>
@@ -118,6 +176,15 @@ export default function DashboardScreen() {
           <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
       </View>
+
+      {/* Staff Visual Verification Banner */}
+      <EntryVerifiedBanner
+        visible={showVerifiedBanner}
+        onDismiss={() => setShowVerifiedBanner(false)}
+        studentName={user?.fullName}
+        studentNumber={user?.studentId}
+        time={checkInTimestamp}
+      />
     </SafeScreen>
   );
 }
@@ -127,8 +194,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: Spacing[6],
     paddingBottom: Spacing[4],
-    justifyContent: 'flex-start',
-    gap: Spacing[5],
+    justifyContent: 'space-between',
   },
   header: {
     flexDirection: 'row',
@@ -160,7 +226,7 @@ const styles = StyleSheet.create({
   },
   cardSection: {},
   skeletonCard: {
-    height: 200,
+    height: 180,
     borderRadius: BorderRadius['2xl'],
     alignItems: 'center',
     justifyContent: 'center',
@@ -174,6 +240,48 @@ const styles = StyleSheet.create({
   noMemberHint: {
     fontSize: Typography.fontSize.sm,
     textAlign: 'center',
+  },
+  sessionBar: {
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  activeSessionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing[3],
+    gap: Spacing[3],
+  },
+  activeSessionInfo: { flex: 1, gap: 2 },
+  activeSessionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  activeSessionLabel: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  checkedInTime: {
+    fontSize: Typography.fontSize.xs,
+    marginLeft: 16,
+  },
+  checkInButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing[2],
+    paddingVertical: Spacing[3],
+  },
+  checkInText: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.bold,
   },
   statsRow: {
     flexDirection: 'row',

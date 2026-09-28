@@ -11,14 +11,14 @@
 
 ## 📱 Features
 
-- **Zero-Trust Client Security**: No raw PII (such as student passport numbers) is ever persisted on the device. Client uses SHA-256 salted hashing before transit and stores short-lived JWTs in hardware-backed secure storage (`expo-secure-store`).
-- **Dynamic Turnstile QR Pass**: Rotating TOTP-based QR codes refreshed automatically every 30 seconds with visual countdown timers and haptic warnings to prevent screenshot sharing.
-- **Pluggable API Architecture (`IApiAdapter`)**: Seamlessly switch between local mock data (`MockApiAdapter`) and real University Active Directory / LDAP / REST databases (`UniversityApiAdapter`) by changing an environment variable (`EXPO_PUBLIC_API_MODE`).
-- **Comprehensive Membership & Quotas**: Real-time tracking of subscription status, countdown of remaining days, unlimited access models, or punch-card visit balances.
-- **Attendance & Visit History**: Timeline of gym entries and exits categorized by fitness zone (Main Hall, Cardio, Weights, Pool, Yoga Studio) with infinite pagination.
+- **Zero-Login & First-Receipt Onboarding**: No passwords, usernames, or temporary credentials needed. Students bind their device and activate their gym membership instantly by scanning their tuition/payment receipt.
+- **Receipt OCR & Manual Confirmation Fallback**: Scans student name, student number (`STD...`), payment date, and reference ID. An editable verification modal allows students to correct any OCR typos from blurred ink or lighting.
+- **Anti-Fraud & Ownership Verification**: Prevents duplicate receipt reuse via tracked `usedReceiptIds` and validates student identity on renewals (rejecting slips belonging to other students).
+- **Gym Staff High-Contrast Verification Card**: Flashes a vibrant full-width emerald green **"ENTRY VERIFIED"** banner with live timestamp and student info so desk staff can confirm entry from a distance.
+- **100% Offline Persistence**: Stores (`authStore`, `membershipStore`, `sessionStore`, `historyStore`) persist to local storage seamlessly (`AsyncStorage` on native, `localStorage` on web), working entirely offline.
 - **Internationalization (i18n)**: Instant runtime language switching across **English (`en`)**, **Russian (`ru`)**, and **Turkish (`tr`)** via `i18next`.
 - **Theme Engine**: System-responsive dynamic **Dark & Light Mode** with semantic design tokens.
-- **Biometric Authentication**: Optional Face ID / Touch ID unlock via `expo-local-authentication`.
+- **Device Profile Reset**: Single-tap option in Profile to wipe device state and allow a clean re-onboarding.
 
 ---
 

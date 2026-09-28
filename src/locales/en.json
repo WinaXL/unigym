@@ -13,6 +13,19 @@
     "ok": "OK",
     "success": "Success"
   },
+  "welcome": {
+    "title": "Welcome to UniGym",
+    "subtitle": "Campus Fitness & Recreation",
+    "description": "Zero-login setup. Scan your payment receipt to activate your student gym membership.",
+    "activateViaReceipt": "Activate via Receipt",
+    "noCredentials": "No username or password required",
+    "featureZeroLoginTitle": "Zero-Login Setup",
+    "featureZeroLoginDesc": "No account credentials or passwords required",
+    "featureReceiptTitle": "Receipt Activation",
+    "featureReceiptDesc": "Scan your gym payment receipt to start access",
+    "featureOfflineTitle": "100% Offline Ready",
+    "featureOfflineDesc": "Check in and track workouts anytime, anywhere"
+  },
   "auth": {
     "title": "Welcome to UniGym",
     "subtitle": "Sign in with your university credentials",
@@ -62,6 +75,11 @@
     "grantPermission": "Grant Permission",
     "successTitle": "Receipt Verified!",
     "successMessage": "Membership extended until {{date}}",
+    "confirmationTitle": "Verify Receipt Details",
+    "confirmationSubtitle": "Please review or edit any fields that may have scanned incorrectly",
+    "confirmAndActivate": "Confirm & Activate",
+    "errorAnotherStudent": "This receipt belongs to another student",
+    "errorAlreadyUsed": "This receipt has already been used",
     "errorNameMismatch": "Name on receipt does not match your profile",
     "errorDateExpired": "Receipt date is too old — must be within the last 7 days",
     "errorNoDate": "Could not detect the payment date — please align the receipt clearly",
@@ -90,7 +108,9 @@
     "activeSession": "Currently working out",
     "checkedInAt": "Checked in at {{time}}",
     "sessionEnded": "Session recorded",
-    "gymVisit": "Gym Visit"
+    "gymVisit": "Gym Visit",
+    "entryVerified": "ENTRY VERIFIED",
+    "accessGranted": "Access Granted"
   },
   "profile": {
     "title": "Profile",
@@ -109,6 +129,10 @@
     "studentNumber": "Student Number",
     "faculty": "Faculty",
     "enrollmentYear": "Enrollment Year",
+    "resetProfile": "Reset Device Profile",
+    "resetConfirmTitle": "Reset Device Profile?",
+    "resetConfirmMessage": "This will clear your student profile, active sessions, and membership from this device. You will need to scan your receipt again to re-activate.",
+    "resetConfirmYes": "Reset Device",
     "logoutConfirmTitle": "Log Out",
     "logoutConfirmMessage": "Are you sure you want to log out? You'll need to sign in again.",
     "logoutConfirmYes": "Log Out",

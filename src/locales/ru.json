@@ -13,6 +13,19 @@
     "ok": "ОК",
     "success": "Успешно"
   },
+  "welcome": {
+    "title": "Добро пожаловать в UniGym",
+    "subtitle": "Спорткомплекс университета",
+    "description": "Вход без логина и пароля. Отсканируйте чек оплаты, чтобы активировать студенческий абонемент.",
+    "activateViaReceipt": "Активировать по чеку",
+    "noCredentials": "Без логинов и паролей",
+    "featureZeroLoginTitle": "Вход без логина",
+    "featureZeroLoginDesc": "Не требуется вводить логины и пароли",
+    "featureReceiptTitle": "Активация по чеку",
+    "featureReceiptDesc": "Отсканируйте чек оплаты зала для доступа",
+    "featureOfflineTitle": "100% офлайн работа",
+    "featureOfflineDesc": "Отмечайте вход и отслеживайте тренировки без интернета"
+  },
   "auth": {
     "title": "Добро пожаловать в UniGym",
     "subtitle": "Войдите с помощью университетских учётных данных",
@@ -64,6 +77,11 @@
     "grantPermission": "Предоставить доступ",
     "successTitle": "Чек подтверждён!",
     "successMessage": "Членство продлено до {{date}}",
+    "confirmationTitle": "Проверьте данные чека",
+    "confirmationSubtitle": "Вы можете изменить любые поля, если текст распознался с ошибкой",
+    "confirmAndActivate": "Подтвердить и активировать",
+    "errorAnotherStudent": "Этот чек принадлежит другому студенту",
+    "errorAlreadyUsed": "Этот чек уже был использован ранее",
     "errorNameMismatch": "Имя на чеке не совпадает с вашим профилем",
     "errorDateExpired": "Дата чека слишком старая — должна быть в пределах 7 дней",
     "errorNoDate": "Не удалось распознать дату оплаты — расположите чек ровно",
@@ -92,7 +110,9 @@
     "activeSession": "Тренировка в процессе",
     "checkedInAt": "Вход в {{time}}",
     "sessionEnded": "Сессия записана",
-    "gymVisit": "Посещение зала"
+    "gymVisit": "Посещение зала",
+    "entryVerified": "ВХОД ПОДТВЕРЖДЁН",
+    "accessGranted": "Доступ разрешён"
   },
   "profile": {
     "title": "Профиль",
@@ -111,6 +131,10 @@
     "studentNumber": "Номер студента",
     "faculty": "Факультет",
     "enrollmentYear": "Год зачисления",
+    "resetProfile": "Сбросить профиль устройства",
+    "resetConfirmTitle": "Сбросить профиль?",
+    "resetConfirmMessage": "Это удалит ваш студенческий профиль, историю посещений и абонемент с этого устройства. Вы сможете снова активироваться по чеку.",
+    "resetConfirmYes": "Сбросить",
     "logoutConfirmTitle": "Выход",
     "logoutConfirmMessage": "Вы уверены, что хотите выйти? Потребуется повторный вход.",
     "logoutConfirmYes": "Выйти",

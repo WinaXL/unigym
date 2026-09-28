@@ -1,5 +1,5 @@
-// app/(tabs)/history.tsx  — Visit History with Manual Check-in/Out
-import React, { useMemo } from 'react';
+// app/(tabs)/history.tsx  — Visit History with Manual Check-in/Out & Staff Verification
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,19 +9,20 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 
 import { SafeScreen } from '../../src/components/ui/SafeScreen';
 import { Button } from '../../src/components/ui/Button';
 import { AttendanceItem } from '../../src/components/history/AttendanceItem';
+import { EntryVerifiedBanner } from '../../src/components/ui/EntryVerifiedBanner';
 import { useThemeColors } from '../../src/hooks/useThemeColors';
 import { useAuthStore } from '../../src/stores/authStore';
-import { useAttendance } from '../../src/hooks/useAttendance';
 import { useSessionStore } from '../../src/stores/sessionStore';
+import { useHistoryStore } from '../../src/stores/historyStore';
 import { hapticService } from '../../src/services/hapticService';
 import { Typography, Spacing, BorderRadius } from '../../src/theme';
 import { formatDateGroup, formatTime } from '../../src/utils/dateUtils';
 import type { AttendanceRecord } from '../../src/types/attendance';
-import { Ionicons } from '@expo/vector-icons';
 
 type Section = { date: string; records: AttendanceRecord[] };
 
@@ -40,38 +41,47 @@ function groupByDate(records: AttendanceRecord[], t: (k: string) => string): Sec
 export default function HistoryScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const user = useAuthStore((s) => s.user);
   const userId = useAuthStore((s) => s.userId);
 
-  const {
-    data,
-    isLoading,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useAttendance();
+  const { records, isLoading } = useHistoryStore();
+  const { activeSession, checkIn, checkOut } = useSessionStore();
 
-  const { activeSession, localRecords, checkIn, checkOut } = useSessionStore();
+  const [showVerifiedBanner, setShowVerifiedBanner] = useState(false);
+  const [checkInTimestamp, setCheckInTimestamp] = useState('');
+  const [elapsedMinutes, setElapsedMinutes] = useState(0);
 
-  // Combine local records with server records
+  // Live timer for active workout
+  useEffect(() => {
+    if (!activeSession) return;
+    const updateElapsed = () => {
+      const now = new Date().getTime();
+      const inTime = new Date(activeSession.timeIn).getTime();
+      setElapsedMinutes(Math.max(1, Math.round((now - inTime) / 60000)));
+    };
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 30000);
+    return () => clearInterval(interval);
+  }, [activeSession]);
+
+  // Combine active session with past records
   const sections = useMemo(() => {
-    const serverRecords = data?.pages?.flatMap((p) => p.records) ?? [];
-    const allRecords = [
-      ...(activeSession ? [activeSession] : []),
-      ...localRecords,
-      ...serverRecords,
-    ];
+    const allRecords = activeSession ? [activeSession, ...records] : records;
     return groupByDate(allRecords, t);
-  }, [data, activeSession, localRecords, t]);
+  }, [records, activeSession, t]);
 
-  function handleCheckIn() {
+  async function handleCheckIn() {
     if (!userId) return;
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setCheckInTimestamp(nowTime);
     hapticService.success();
-    checkIn(userId);
+    setShowVerifiedBanner(true);
+    await checkIn(userId);
   }
 
-  function handleCheckOut() {
+  async function handleCheckOut() {
     hapticService.medium();
-    checkOut();
+    await checkOut();
   }
 
   function renderSection({ item }: { item: Section }) {
@@ -111,7 +121,7 @@ export default function HistoryScreen() {
               {t('history.title')}
             </Text>
 
-            {/* Check-in / Check-out Bar */}
+            {/* Check-in / Check-out Action Card */}
             <View style={[styles.sessionBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               {activeSession ? (
                 <View style={styles.activeSessionContent}>
@@ -123,7 +133,7 @@ export default function HistoryScreen() {
                       </Text>
                     </View>
                     <Text style={[styles.checkedInTime, { color: colors.textSecondary }]}>
-                      {t('history.checkedInAt', { time: formatTime(activeSession.timeIn) })}
+                      {t('history.checkedInAt', { time: formatTime(activeSession.timeIn) })} • {elapsedMinutes}m
                     </Text>
                   </View>
                   <Button
@@ -140,7 +150,7 @@ export default function HistoryScreen() {
                   onPress={handleCheckIn}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="log-in-outline" size={22} color="#FFFFFF" />
+                  <Ionicons name="log-in-outline" size={24} color="#FFFFFF" />
                   <Text style={styles.checkInText}>{t('history.checkIn')}</Text>
                 </TouchableOpacity>
               )}
@@ -158,24 +168,16 @@ export default function HistoryScreen() {
             </Text>
           </View>
         }
-        ListFooterComponent={
-          hasNextPage ? (
-            <TouchableOpacity
-              style={[styles.loadMore, { backgroundColor: colors.surfaceElevated }]}
-              onPress={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-            >
-              {isFetchingNextPage ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <Text style={[styles.loadMoreText, { color: colors.primary }]}>
-                  Load more
-                </Text>
-              )}
-            </TouchableOpacity>
-          ) : null
-        }
         showsVerticalScrollIndicator={false}
+      />
+
+      {/* Staff Visual Verification Banner */}
+      <EntryVerifiedBanner
+        visible={showVerifiedBanner}
+        onDismiss={() => setShowVerifiedBanner(false)}
+        studentName={user?.fullName}
+        studentNumber={user?.studentId}
+        time={checkInTimestamp}
       />
     </SafeScreen>
   );
@@ -192,12 +194,11 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginBottom: Spacing[4],
   },
-  // Session Bar
   sessionBar: {
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
     overflow: 'hidden',
-    marginBottom: Spacing[4],
+    marginBottom: Spacing[5],
   },
   activeSessionContent: {
     flexDirection: 'row',
@@ -213,9 +214,9 @@ const styles = StyleSheet.create({
     gap: Spacing[2],
   },
   liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   activeSessionLabel: {
     fontSize: Typography.fontSize.base,
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
   },
   checkedInTime: {
     fontSize: Typography.fontSize.sm,
-    marginLeft: 16, // align with text after dot
+    marginLeft: 18,
   },
   checkInButton: {
     flexDirection: 'row',
@@ -236,10 +237,9 @@ const styles = StyleSheet.create({
   },
   checkInText: {
     fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
+    fontWeight: Typography.fontWeight.bold,
     color: '#FFFFFF',
   },
-  // Sections
   section: {
     paddingHorizontal: Spacing[6],
     marginBottom: Spacing[4],
@@ -266,15 +266,5 @@ const styles = StyleSheet.create({
   emptyDesc: {
     fontSize: Typography.fontSize.base,
     textAlign: 'center',
-  },
-  loadMore: {
-    margin: Spacing[6],
-    padding: Spacing[4],
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  loadMoreText: {
-    fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.semibold,
   },
 });

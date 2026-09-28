@@ -1,45 +1,64 @@
 // src/stores/sessionStore.ts
-/**
- * sessionStore — Tracks the current gym workout session (check-in / check-out).
- * Also stores locally-added attendance records for the current app session.
- */
 import { create } from 'zustand';
 import type { AttendanceRecord } from '../types/attendance';
+import { storage } from '../services/storage';
+import { STORAGE_KEYS } from '../core/constants';
+import { useHistoryStore } from './historyStore';
 
 interface SessionState {
-  /** The active check-in record (null = not checked in) */
   activeSession: AttendanceRecord | null;
-  /** Locally-added records (from manual check-in/out) */
-  localRecords: AttendanceRecord[];
+  isLoading: boolean;
 
-  checkIn: (userId: string) => void;
-  checkOut: () => AttendanceRecord | null;
-  clearSession: () => void;
+  loadSession: () => Promise<void>;
+  checkIn: (userId: string) => Promise<AttendanceRecord>;
+  checkOut: () => Promise<AttendanceRecord | null>;
+  clearSession: () => Promise<void>;
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   activeSession: null,
-  localRecords: [],
+  isLoading: true,
 
-  checkIn: (userId: string) => {
+  loadSession: async () => {
+    try {
+      const data = await storage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
+      if (data) {
+        const record: AttendanceRecord = JSON.parse(data);
+        set({ activeSession: record, isLoading: false });
+        return;
+      }
+    } catch {
+      // noop
+    }
+    set({ activeSession: null, isLoading: false });
+  },
+
+  checkIn: async (userId: string) => {
     const now = new Date();
     const record: AttendanceRecord = {
-      id: `local-${Date.now()}`,
+      id: `att-${Date.now()}`,
       userId,
       date: now.toISOString().split('T')[0],
       timeIn: now.toISOString(),
-      // timeOut is undefined while session is active
     };
+
+    try {
+      await storage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(record));
+    } catch {
+      // noop
+    }
+
     set({ activeSession: record });
+    return record;
   },
 
-  checkOut: () => {
-    const { activeSession, localRecords } = get();
+  checkOut: async () => {
+    const { activeSession } = get();
     if (!activeSession) return null;
 
     const now = new Date();
     const timeInMs = new Date(activeSession.timeIn).getTime();
-    const durationMinutes = Math.round((now.getTime() - timeInMs) / 60000);
+    const durationMinutes = Math.max(1, Math.round((now.getTime() - timeInMs) / 60000));
 
     const completed: AttendanceRecord = {
       ...activeSession,
@@ -47,13 +66,25 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       durationMinutes,
     };
 
-    set({
-      activeSession: null,
-      localRecords: [completed, ...localRecords],
-    });
+    try {
+      await storage.deleteItem(STORAGE_KEYS.ACTIVE_SESSION);
+    } catch {
+      // noop
+    }
 
+    // Persist to history store
+    await useHistoryStore.getState().addRecord(completed);
+
+    set({ activeSession: null });
     return completed;
   },
 
-  clearSession: () => set({ activeSession: null, localRecords: [] }),
+  clearSession: async () => {
+    try {
+      await storage.deleteItem(STORAGE_KEYS.ACTIVE_SESSION);
+    } catch {
+      // noop
+    }
+    set({ activeSession: null });
+  },
 }));

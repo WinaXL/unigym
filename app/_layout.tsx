@@ -13,11 +13,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { queryClient } from '../src/core/queryClient';
 import { ApiProvider } from '../src/services/ApiProvider';
 import { useAuthStore } from '../src/stores/authStore';
+import { useMembershipStore } from '../src/stores/membershipStore';
+import { useSessionStore } from '../src/stores/sessionStore';
+import { useHistoryStore } from '../src/stores/historyStore';
 import { useThemeStore } from '../src/stores/themeStore';
 import { useLocaleStore } from '../src/stores/localeStore';
-import { tokenService } from '../src/services/tokenService';
-import { authService } from '../src/services/authService';
-import { useApiAdapter } from '../src/services/ApiProvider';
+import { storage } from '../src/services/storage';
 import { STORAGE_KEYS } from '../src/core/constants';
 
 // SplashScreen.preventAutoHideAsync() is native-only; guard it for web
@@ -28,52 +29,32 @@ if (Platform.OS !== 'web') {
 function RootLayoutNav() {
   const router = useRouter();
   const segments = useSegments();
-  const { isAuthenticated, isLoading, setAuthenticated, clearAuth } = useAuthStore();
+  const { isAuthenticated, isLoading, loadProfile } = useAuthStore();
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
-  const adapter = useApiAdapter();
 
-  // Bootstrap: restore session from secure / web storage
+  // Bootstrap: restore session & all stores from local storage
   useEffect(() => {
     async function bootstrap() {
       try {
         // Restore saved preferences (theme, language)
         const [savedTheme, savedLang] = await Promise.all([
-          tokenService.getPreference(STORAGE_KEYS.THEME).catch(() => null),
-          tokenService.getPreference(STORAGE_KEYS.LANGUAGE).catch(() => null),
+          storage.getItem(STORAGE_KEYS.THEME).catch(() => null),
+          storage.getItem(STORAGE_KEYS.LANGUAGE).catch(() => null),
         ]);
 
         if (savedTheme) useThemeStore.getState().setPreference(savedTheme as any);
         if (savedLang) useLocaleStore.getState().setLanguage(savedLang as any);
 
-        // Try silent session restore
-        const isValid = await authService.isSessionValid().catch(() => false);
-        if (isValid) {
-          const userId = await tokenService.getUserId().catch(() => null);
-          if (userId) {
-            const profile = await adapter.getProfile(userId).catch(() => null);
-            profile ? setAuthenticated(profile) : clearAuth();
-          } else {
-            clearAuth();
-          }
-        } else {
-          // Try silent token refresh using stored refresh token
-          const tokens = await authService.silentRefresh(adapter).catch(() => null);
-          if (tokens) {
-            const userId = await tokenService.getUserId().catch(() => null);
-            if (userId) {
-              const profile = await adapter.getProfile(userId).catch(() => null);
-              profile ? setAuthenticated(profile) : clearAuth();
-            } else {
-              clearAuth();
-            }
-          } else {
-            clearAuth();
-          }
-        }
+        // Load all offline stores in parallel
+        const profile = await loadProfile();
+        await Promise.all([
+          useMembershipStore.getState().loadMembership(),
+          useSessionStore.getState().loadSession(),
+          useHistoryStore.getState().loadHistory(profile?.id || 'user-001'),
+        ]);
       } catch {
-        clearAuth();
+        // fallback
       } finally {
-        // Hide splash only on native
         if (Platform.OS !== 'web') {
           SplashScreen.hideAsync().catch(() => {});
         }
@@ -83,7 +64,7 @@ function RootLayoutNav() {
     bootstrap();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Route guard: redirect based on auth state
+  // Route guard: redirect based on auth/onboarding state
   useEffect(() => {
     if (isLoading) return;
 

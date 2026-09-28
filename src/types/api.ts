@@ -12,7 +12,7 @@ export interface ReceiptValidationResult {
   success: boolean;
   receipt?: ReceiptData;
   membershipExpiryDate?: string; // ISO 8601
-  error?: 'NAME_MISMATCH' | 'DATE_EXPIRED' | 'NO_DATE' | 'NO_NAME' | 'GENERIC';
+  error?: 'NAME_MISMATCH' | 'DATE_EXPIRED' | 'ALREADY_USED' | 'NO_DATE' | 'NO_NAME' | 'GENERIC';
 }
 
 export type ApiError = {

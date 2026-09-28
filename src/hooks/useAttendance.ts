@@ -1,20 +1,26 @@
 // src/hooks/useAttendance.ts
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { useApiAdapter } from '../services/ApiProvider';
-import { useAuthStore } from '../stores/authStore';
-import type { AttendancePage } from '../types/attendance';
+import { useHistoryStore } from '../stores/historyStore';
 
 export function useAttendance() {
-  const adapter = useApiAdapter();
-  const userId = useAuthStore((s) => s.userId);
+  const records = useHistoryStore((s) => s.records);
+  const isLoading = useHistoryStore((s) => s.isLoading);
 
-  return useInfiniteQuery<AttendancePage>({
-    queryKey: ['attendance', userId],
-    queryFn: ({ pageParam = 1 }) =>
-      adapter.getAttendanceHistory(userId!, pageParam as number),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.page + 1 : undefined,
-    enabled: !!userId,
-  });
+  return {
+    data: {
+      pages: [
+        {
+          records,
+          total: records.length,
+          page: 1,
+          pageSize: records.length,
+          hasMore: false,
+        },
+      ],
+    },
+    records,
+    isLoading,
+    fetchNextPage: () => {},
+    hasNextPage: false,
+    isFetchingNextPage: false,
+  };
 }

@@ -18,6 +18,11 @@ import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { useThemeColors } from '../../src/hooks/useThemeColors';
 import { useAuth } from '../../src/hooks/useAuth';
+import { useAuthStore } from '../../src/stores/authStore';
+import { useMembershipStore } from '../../src/stores/membershipStore';
+import { useSessionStore } from '../../src/stores/sessionStore';
+import { useHistoryStore } from '../../src/stores/historyStore';
+import { storage } from '../../src/services/storage';
 import { useThemeStore } from '../../src/stores/themeStore';
 import { useLocaleStore } from '../../src/stores/localeStore';
 import { hapticService } from '../../src/services/hapticService';
@@ -77,16 +82,23 @@ export default function ProfileScreen() {
     await tokenService.storePreference(STORAGE_KEYS.BIOMETRIC_ENABLED, val ? 'true' : 'false');
   }
 
-  function handleLogout() {
+  function handleResetDeviceProfile() {
     Alert.alert(
-      t('profile.logoutConfirmTitle'),
-      t('profile.logoutConfirmMessage'),
+      t('profile.resetConfirmTitle'),
+      t('profile.resetConfirmMessage'),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: t('profile.logoutConfirmYes'),
+          text: t('profile.resetConfirmYes'),
           style: 'destructive',
-          onPress: () => logout(),
+          onPress: async () => {
+            hapticService.heavy();
+            await useAuthStore.getState().clearAuth();
+            await useMembershipStore.getState().resetMembership();
+            await useSessionStore.getState().clearSession();
+            await useHistoryStore.getState().resetHistory();
+            await storage.clearAll();
+          },
         },
       ]
     );
@@ -259,10 +271,10 @@ export default function ProfileScreen() {
             </Card>
           </View>
 
-          {/* Logout */}
+          {/* Reset Device Profile */}
           <Button
-            label={t('common.logout')}
-            onPress={handleLogout}
+            label={t('profile.resetProfile')}
+            onPress={handleResetDeviceProfile}
             variant="danger"
             size="lg"
             style={styles.logoutButton}
