@@ -1,4 +1,4 @@
-// app/(tabs)/history.tsx  — Visit History with Manual Check-in/Out & Staff Verification
+// app/(tabs)/history.tsx  — Visit History with Silent Manual Check-in/Out
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeScreen } from '../../src/components/ui/SafeScreen';
 import { Button } from '../../src/components/ui/Button';
 import { AttendanceItem } from '../../src/components/history/AttendanceItem';
-import { EntryVerifiedBanner } from '../../src/components/ui/EntryVerifiedBanner';
 import { useThemeColors } from '../../src/hooks/useThemeColors';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useSessionStore } from '../../src/stores/sessionStore';
@@ -41,14 +40,11 @@ function groupByDate(records: AttendanceRecord[], t: (k: string) => string): Sec
 export default function HistoryScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
-  const user = useAuthStore((s) => s.user);
   const userId = useAuthStore((s) => s.userId);
 
   const { records, isLoading } = useHistoryStore();
   const { activeSession, checkIn, checkOut } = useSessionStore();
 
-  const [showVerifiedBanner, setShowVerifiedBanner] = useState(false);
-  const [checkInTimestamp, setCheckInTimestamp] = useState('');
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
 
   // Live timer for active workout
@@ -64,18 +60,25 @@ export default function HistoryScreen() {
     return () => clearInterval(interval);
   }, [activeSession]);
 
-  // Combine active session with past records
+  // Combine active session with past records, guaranteed duplicate-free
   const sections = useMemo(() => {
-    const allRecords = activeSession ? [activeSession, ...records] : records;
-    return groupByDate(allRecords, t);
+    const seen = new Set<string>();
+    const uniqueRecords: AttendanceRecord[] = [];
+    const sourceRecords = activeSession ? [activeSession, ...records] : records;
+
+    for (const r of sourceRecords) {
+      if (!seen.has(r.id)) {
+        seen.add(r.id);
+        uniqueRecords.push(r);
+      }
+    }
+
+    return groupByDate(uniqueRecords, t);
   }, [records, activeSession, t]);
 
   async function handleCheckIn() {
     if (!userId) return;
-    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setCheckInTimestamp(nowTime);
     hapticService.success();
-    setShowVerifiedBanner(true);
     await checkIn(userId);
   }
 
@@ -169,15 +172,6 @@ export default function HistoryScreen() {
           </View>
         }
         showsVerticalScrollIndicator={false}
-      />
-
-      {/* Staff Visual Verification Banner */}
-      <EntryVerifiedBanner
-        visible={showVerifiedBanner}
-        onDismiss={() => setShowVerifiedBanner(false)}
-        studentName={user?.fullName}
-        studentNumber={user?.studentId}
-        time={checkInTimestamp}
       />
     </SafeScreen>
   );

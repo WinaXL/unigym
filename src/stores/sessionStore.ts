@@ -36,7 +36,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   checkIn: async (userId: string) => {
     const now = new Date();
     const record: AttendanceRecord = {
-      id: `att-${Date.now()}`,
+      id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       userId,
       date: now.toISOString().split('T')[0],
       timeIn: now.toISOString(),

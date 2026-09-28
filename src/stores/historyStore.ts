@@ -30,7 +30,7 @@ function generateInitialHistory(userId: string): AttendanceRecord[] {
     const timeOut = new Date(timeIn.getTime() + duration * 60 * 1000);
 
     records.push({
-      id: `att-seed-${i}`,
+      id: `att-seed-${i}-${Math.random().toString(36).substring(2, 7)}`,
       userId,
       date: dateStr,
       timeIn: timeIn.toISOString(),
@@ -50,7 +50,14 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     try {
       const data = await storage.getItem(STORAGE_KEYS.ATTENDANCE_HISTORY);
       if (data) {
-        const records: AttendanceRecord[] = JSON.parse(data);
+        const rawRecords: AttendanceRecord[] = JSON.parse(data);
+        // Deduplicate records by ID to guarantee unique list keys
+        const seen = new Set<string>();
+        const records = rawRecords.filter((r) => {
+          if (!r?.id || seen.has(r.id)) return false;
+          seen.add(r.id);
+          return true;
+        });
         set({ records, isLoading: false });
         return;
       }
@@ -65,7 +72,11 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
 
   addRecord: async (record: AttendanceRecord) => {
     const { records } = get();
-    const updated = [record, ...records];
+    const uniqueId = record.id || `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const cleanRecord = { ...record, id: uniqueId };
+
+    // Prevent duplicate entries by ID
+    const updated = [cleanRecord, ...records.filter((r) => r.id !== cleanRecord.id)];
     try {
       await storage.setItem(STORAGE_KEYS.ATTENDANCE_HISTORY, JSON.stringify(updated));
     } catch {

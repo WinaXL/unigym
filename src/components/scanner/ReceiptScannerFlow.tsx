@@ -96,7 +96,7 @@ export function ReceiptScannerFlow({
   async function handlePickGallery() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         quality: 0.8,
       });
 
@@ -222,17 +222,16 @@ export function ReceiptScannerFlow({
   if (step === 'camera') {
     return (
       <View style={styles.cameraContainer}>
-        <CameraView ref={cameraRef} style={styles.camera} facing="back">
-          <View style={styles.cameraOverlay}>
-            <View style={[styles.cameraFrame, { borderColor: colors.primary }]}>
-              <View style={styles.cameraCornerTL} />
-              <View style={styles.cameraCornerTR} />
-              <View style={styles.cameraCornerBL} />
-              <View style={styles.cameraCornerBR} />
-            </View>
-            <Text style={styles.cameraHint}>Align receipt within the frame</Text>
+        <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+        <View style={styles.cameraOverlay} pointerEvents="box-none">
+          <View style={[styles.cameraFrame, { borderColor: colors.primary }]}>
+            <View style={styles.cameraCornerTL} />
+            <View style={styles.cameraCornerTR} />
+            <View style={styles.cameraCornerBL} />
+            <View style={styles.cameraCornerBR} />
           </View>
-        </CameraView>
+          <Text style={styles.cameraHint}>Align receipt within the frame</Text>
+        </View>
         <View style={[styles.cameraControls, { backgroundColor: colors.background }]}>
           <TouchableOpacity
             style={styles.controlCancel}
@@ -484,12 +483,21 @@ const styles = StyleSheet.create({
   cameraContainer: {
     flex: 1,
     backgroundColor: '#000000',
+    position: 'relative',
   },
   camera: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   cameraOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 110,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
@@ -516,6 +524,10 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   cameraControls: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

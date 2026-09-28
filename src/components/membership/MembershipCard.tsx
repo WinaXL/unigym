@@ -99,7 +99,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: BorderRadius['2xl'],
     padding: Spacing[6],
-    marginBottom: Spacing[4],
   },
   headerRow: {
     flexDirection: 'row',

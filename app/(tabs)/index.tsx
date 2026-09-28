@@ -1,5 +1,5 @@
 // app/(tabs)/index.tsx  — Dashboard / Home Screen
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,6 @@ import { SafeScreen } from '../../src/components/ui/SafeScreen';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { MembershipCard } from '../../src/components/membership/MembershipCard';
-import { EntryVerifiedBanner } from '../../src/components/ui/EntryVerifiedBanner';
 import { useThemeColors } from '../../src/hooks/useThemeColors';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useMembershipStore } from '../../src/stores/membershipStore';
@@ -36,9 +35,6 @@ export default function DashboardScreen() {
   const { activeSession, checkIn, checkOut } = useSessionStore();
   const { records } = useHistoryStore();
 
-  const [showVerifiedBanner, setShowVerifiedBanner] = useState(false);
-  const [checkInTimestamp, setCheckInTimestamp] = useState('');
-
   const firstName = user?.fullName?.split(' ')[0] ?? '';
   const greeting = t('dashboard.greeting', {
     time: getGreetingTime(t),
@@ -49,10 +45,7 @@ export default function DashboardScreen() {
 
   async function handleCheckIn() {
     if (!userId) return;
-    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setCheckInTimestamp(nowTime);
     hapticService.success();
-    setShowVerifiedBanner(true);
     await checkIn(userId);
   }
 
@@ -69,103 +62,106 @@ export default function DashboardScreen() {
   return (
     <SafeScreen noPadding>
       <View style={[styles.container, { paddingHorizontal: Spacing[6] }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={[styles.greeting, { color: colors.textSecondary }]}>{greeting}</Text>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-              {t('dashboard.title')}
-            </Text>
-          </View>
-          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-            <Text style={styles.avatarText}>
-              {user?.fullName?.charAt(0) ?? 'U'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Membership Card */}
-        <View style={styles.cardSection}>
-          {membershipLoading ? (
-            <View style={[styles.skeletonCard, { backgroundColor: colors.surfaceElevated }]}>
-              <ActivityIndicator color={colors.primary} />
+        {/* Main Content Group with Uniform Spacing */}
+        <View style={styles.mainContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerText}>
+              <Text style={[styles.greeting, { color: colors.textSecondary }]}>{greeting}</Text>
+              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+                {t('dashboard.title')}
+              </Text>
             </View>
-          ) : membership ? (
-            <MembershipCard
-              membership={membership}
-              studentName={user?.fullName ?? ''}
-              studentId={user?.studentId ?? ''}
-            />
-          ) : (
-            <Card>
-              <Text style={[styles.noMemberTitle, { color: colors.textPrimary }]}>
-                {t('dashboard.noMembership')}
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+              <Text style={styles.avatarText}>
+                {user?.fullName?.charAt(0) ?? 'U'}
               </Text>
-              <Text style={[styles.noMemberHint, { color: colors.textSecondary }]}>
-                {t('dashboard.noMembershipHint')}
-              </Text>
-            </Card>
-          )}
-        </View>
+            </View>
+          </View>
 
-        {/* Check-In / Check-Out Quick Action Bar */}
-        <View style={[styles.sessionBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {activeSession ? (
-            <View style={styles.activeSessionContent}>
-              <View style={styles.activeSessionInfo}>
-                <View style={styles.activeSessionRow}>
-                  <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
-                  <Text style={[styles.activeSessionLabel, { color: colors.textPrimary }]}>
-                    {t('history.activeSession')}
+          {/* Membership Card */}
+          <View style={styles.cardSection}>
+            {membershipLoading ? (
+              <View style={[styles.skeletonCard, { backgroundColor: colors.surfaceElevated }]}>
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : membership ? (
+              <MembershipCard
+                membership={membership}
+                studentName={user?.fullName ?? ''}
+                studentId={user?.studentId ?? ''}
+              />
+            ) : (
+              <Card>
+                <Text style={[styles.noMemberTitle, { color: colors.textPrimary }]}>
+                  {t('dashboard.noMembership')}
+                </Text>
+                <Text style={[styles.noMemberHint, { color: colors.textSecondary }]}>
+                  {t('dashboard.noMembershipHint')}
+                </Text>
+              </Card>
+            )}
+          </View>
+
+          {/* Check-In / Check-Out Action Bar */}
+          <View style={[styles.sessionBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            {activeSession ? (
+              <View style={styles.activeSessionContent}>
+                <View style={styles.activeSessionInfo}>
+                  <View style={styles.activeSessionRow}>
+                    <View style={[styles.liveDot, { backgroundColor: colors.success }]} />
+                    <Text style={[styles.activeSessionLabel, { color: colors.textPrimary }]}>
+                      {t('history.activeSession')}
+                    </Text>
+                  </View>
+                  <Text style={[styles.checkedInTime, { color: colors.textSecondary }]}>
+                    {t('history.checkedInAt', { time: formatTime(activeSession.timeIn) })}
                   </Text>
                 </View>
-                <Text style={[styles.checkedInTime, { color: colors.textSecondary }]}>
-                  {t('history.checkedInAt', { time: formatTime(activeSession.timeIn) })}
-                </Text>
+                <Button
+                  label={t('history.checkOut')}
+                  variant="danger"
+                  size="sm"
+                  onPress={handleCheckOut}
+                  haptic="medium"
+                />
               </View>
-              <Button
-                label={t('history.checkOut')}
-                variant="danger"
-                size="sm"
-                onPress={handleCheckOut}
-                haptic="medium"
-              />
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={[styles.checkInButton, { backgroundColor: colors.surfaceSubtle }]}
-              onPress={handleCheckIn}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="enter-outline" size={20} color={colors.primary} />
-              <Text style={[styles.checkInText, { color: colors.textPrimary }]}>
-                {t('history.checkIn')}
+            ) : (
+              <TouchableOpacity
+                style={[styles.checkInButton, { backgroundColor: colors.surfaceSubtle }]}
+                onPress={handleCheckIn}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="enter-outline" size={20} color={colors.primary} />
+                <Text style={[styles.checkInText, { color: colors.textPrimary }]}>
+                  {t('history.checkIn')}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            <Card style={styles.statCard}>
+              <Text style={[styles.statValue, { color: colors.primary }]}>
+                {membership?.daysRemaining ?? '—'}
               </Text>
-            </TouchableOpacity>
-          )}
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                {t('dashboard.daysRemaining', { count: membership?.daysRemaining ?? 0 })}
+              </Text>
+            </Card>
+            <Card style={styles.statCard}>
+              <Text style={[styles.statValue, { color: colors.accent }]}>
+                {totalVisits}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                {t('dashboard.totalVisits')}
+              </Text>
+            </Card>
+          </View>
         </View>
 
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <Card style={styles.statCard}>
-            <Text style={[styles.statValue, { color: colors.primary }]}>
-              {membership?.daysRemaining ?? '—'}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              {t('dashboard.daysRemaining', { count: membership?.daysRemaining ?? 0 })}
-            </Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={[styles.statValue, { color: colors.accent }]}>
-              {totalVisits}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              {t('dashboard.totalVisits')}
-            </Text>
-          </Card>
-        </View>
-
-        {/* Scan Receipt Button */}
+        {/* Scan Receipt Button (Bottom CTA) */}
         <TouchableOpacity
           style={[styles.scanButton, { backgroundColor: colors.primary }]}
           onPress={handleScanPress}
@@ -176,15 +172,6 @@ export default function DashboardScreen() {
           <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
       </View>
-
-      {/* Staff Visual Verification Banner */}
-      <EntryVerifiedBanner
-        visible={showVerifiedBanner}
-        onDismiss={() => setShowVerifiedBanner(false)}
-        studentName={user?.fullName}
-        studentNumber={user?.studentId}
-        time={checkInTimestamp}
-      />
     </SafeScreen>
   );
 }
@@ -196,10 +183,14 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing[4],
     justifyContent: 'space-between',
   },
+  mainContent: {
+    gap: Spacing[4],
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: Spacing[1],
   },
   headerText: { flex: 1 },
   greeting: {
@@ -310,7 +301,6 @@ const styles = StyleSheet.create({
     gap: Spacing[3],
     padding: Spacing[5],
     borderRadius: BorderRadius.xl,
-    marginTop: 'auto',
   },
   scanButtonText: {
     flex: 1,
