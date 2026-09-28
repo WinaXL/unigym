@@ -60,12 +60,12 @@ export function MembershipCard({ membership, studentName, studentId }: Membershi
         <View>
           <Text style={styles.metaLabel}>
             {membership.quotaType === 'unlimited'
-              ? t('dashboard.unlimited')
+              ? t('dashboard.plan')
               : t('dashboard.visitsRemaining', { count: membership.quotaRemaining ?? 0 })}
           </Text>
           <Text style={styles.metaValue}>
             {membership.quotaType === 'unlimited'
-              ? t('dashboard.visitsThisMonth')
+              ? t('dashboard.unlimited')
               : `${membership.quotaRemaining} / ${membership.quotaTotal}`}
           </Text>
         </View>

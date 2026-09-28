@@ -116,7 +116,7 @@ export default function ProfileScreen() {
               {user?.fullName}
             </Text>
             <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
-              {user?.email}
+              {user?.studentId}
             </Text>
           </View>
         </View>
@@ -129,7 +129,7 @@ export default function ProfileScreen() {
             </Text>
             <Card noPadding>
               <SettingRow
-                label={t('profile.studentId')}
+                label={t('profile.studentNumber')}
                 value={user?.studentId}
                 colors={colors}
               />

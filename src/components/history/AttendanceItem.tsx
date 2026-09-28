@@ -11,32 +11,24 @@ interface AttendanceItemProps {
   record: AttendanceRecord;
 }
 
-const ZONE_ICONS: Record<string, string> = {
-  main_hall: '🏋️',
-  pool: '🏊',
-  yoga_studio: '🧘',
-  cardio: '🏃',
-  weights: '💪',
-};
-
 export function AttendanceItem({ record }: AttendanceItemProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
 
-  const zoneKey = `history.zones.${record.zone}` as any;
-  const zoneLabel = t(zoneKey);
-  const zoneIcon = ZONE_ICONS[record.zone] ?? '🏃';
+  const isActive = !record.timeOut;
 
   return (
     <View style={[styles.container, { borderBottomColor: colors.border }]}>
-      {/* Zone icon */}
-      <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight }]}>
-        <Text style={styles.icon}>{zoneIcon}</Text>
+      {/* Gym icon */}
+      <View style={[styles.iconContainer, { backgroundColor: isActive ? colors.primary : colors.primaryLight }]}>
+        <Text style={styles.icon}>{isActive ? '🏃' : '🏋️'}</Text>
       </View>
 
       {/* Details */}
       <View style={styles.details}>
-        <Text style={[styles.zoneName, { color: colors.textPrimary }]}>{zoneLabel}</Text>
+        <Text style={[styles.label, { color: colors.textPrimary }]}>
+          {t('history.gymVisit')}
+        </Text>
         <View style={styles.timeRow}>
           <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>
             {t('history.timeIn')}:{' '}
@@ -58,12 +50,14 @@ export function AttendanceItem({ record }: AttendanceItemProps) {
         </View>
       </View>
 
-      {/* Duration */}
-      {record.durationMinutes && (
+      {/* Duration or Active indicator */}
+      {record.durationMinutes ? (
         <Text style={[styles.duration, { color: colors.primary }]}>
           {t('history.duration', { minutes: record.durationMinutes })}
         </Text>
-      )}
+      ) : isActive ? (
+        <View style={[styles.activeDot, { backgroundColor: colors.success }]} />
+      ) : null}
     </View>
   );
 }
@@ -90,7 +84,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
   },
-  zoneName: {
+  label: {
     fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.semibold,
   },
@@ -109,5 +103,10 @@ const styles = StyleSheet.create({
   duration: {
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
+  },
+  activeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
 });

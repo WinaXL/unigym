@@ -25,7 +25,6 @@ export interface UserProfile {
   id: string;
   studentId: string;
   fullName: string;
-  email: string;
   avatarUrl?: string;
   faculty?: string;
   enrollmentYear?: number;

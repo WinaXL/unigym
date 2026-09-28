@@ -180,7 +180,7 @@ export default function LoginScreen() {
             {/* Demo hint */}
             <View style={[styles.demoHint, { backgroundColor: colors.primaryLight }]}>
               <Text style={[styles.demoText, { color: colors.primary }]}>
-                {'Demo: Student ID → STU001, STU002 or STU003\nPassport → any 5+ chars'}
+                {'Demo: Student Number → STD23141035, STD22130920, STD24150712\nPassport → any 5+ chars'}
               </Text>
             </View>
 

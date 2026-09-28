@@ -10,13 +10,14 @@
     "confirm": "Onayla",
     "back": "Geri",
     "close": "Kapat",
-    "ok": "Tamam"
+    "ok": "Tamam",
+    "success": "Başarılı"
   },
   "auth": {
     "title": "UniGym'e Hoş Geldiniz",
     "subtitle": "Üniversite kimlik bilgilerinizle giriş yapın",
     "studentId": "Öğrenci Numarası",
-    "studentIdPlaceholder": "Öğrenci numaranızı girin",
+    "studentIdPlaceholder": "örn. STD23141035",
     "passportId": "Pasaport Numarası",
     "passportIdPlaceholder": "Pasaport numaranızı girin",
     "signIn": "Giriş Yap",
@@ -28,7 +29,7 @@
     "errorGeneric": "Giriş başarısız. Lütfen tekrar deneyin.",
     "studentIdRequired": "Öğrenci numarası gerekli",
     "passportRequired": "Pasaport numarası gerekli",
-    "studentIdInvalid": "Geçerli bir öğrenci numarası girin (6–12 karakter)",
+    "studentIdInvalid": "Geçerli bir öğrenci numarası girin (örn. STD23141035)",
     "passportInvalid": "Geçerli bir pasaport numarası girin"
   },
   "dashboard": {
@@ -44,21 +45,36 @@
     "visitsRemaining": "{{count}} ziyaret kaldı",
     "visitsRemaining_other": "{{count}} ziyaret kaldı",
     "unlimited": "Sınırsız",
-    "visitsThisMonth": "Bu ayki ziyaretler",
-    "getQrPass": "Giriş Pasını Göster",
-    "activePass": "Aktif Pas",
-    "zones": "Bölgeler",
-    "plan": "Plan"
-  },
-  "qr": {
-    "title": "Giriş Pası",
-    "subtitle": "Turnstile'da gösterin",
-    "rotatesIn": "{{seconds}}s içinde yenilenir",
-    "scanning": "Tarama için sabit tutun",
-    "tapToRefresh": "Yenilemek için dokunun",
-    "secureNote": "Bu kod size özel ve otomatik olarak sona erer",
+    "totalVisits": "Toplam Ziyaret",
+    "scanReceipt": "Ödeme Makbuzunu Tara",
+    "plan": "Plan",
     "noMembership": "Aktif üyelik yok",
-    "noMembershipDesc": "Üyeliğinizin süresi dolmuş veya aktif değil"
+    "noMembershipHint": "Aktivasyon için ödeme makbuzunu tarayın"
+  },
+  "scan": {
+    "title": "Ödeme Doğrulama",
+    "subtitle": "Spor salonu ödeme makbuzunuzu tarayın veya yükleyin",
+    "takePhoto": "Fotoğraf Çek",
+    "uploadGallery": "Galeriden Yükle",
+    "processing": "Makbuz işleniyor...",
+    "cameraPermission": "Makbuzları taramak için kamera erişimi gerekli",
+    "galleryPermission": "Makbuz fotoğrafı yüklemek için galeri erişimi gerekli",
+    "grantPermission": "İzin Ver",
+    "successTitle": "Makbuz Doğrulandı!",
+    "successMessage": "Üyelik {{date}} tarihine kadar uzatıldı",
+    "errorNameMismatch": "Makbuzdaki isim profilinizle eşleşmiyor",
+    "errorDateExpired": "Makbuz tarihi çok eski — son 7 gün içinde olmalı",
+    "errorNoDate": "Ödeme tarihi algılanamadı — makbuzu düz tutun",
+    "errorNoName": "Makbuzdaki öğrenci adı algılanamadı",
+    "errorGeneric": "Makbuz işlenemedi. Lütfen tekrar deneyin.",
+    "detectedFields": "Algılanan Bilgiler",
+    "studentName": "Öğrenci Adı",
+    "studentNumber": "Öğrenci Numarası",
+    "paymentDate": "Ödeme Tarihi",
+    "referenceId": "Referans No",
+    "amount": "Tutar",
+    "verifyReceipt": "Doğrula ve Aktive Et",
+    "retake": "Yeniden Çek / Yükle"
   },
   "history": {
     "title": "Ziyaret Geçmişi",
@@ -69,14 +85,12 @@
     "timeIn": "Giriş",
     "timeOut": "Çıkış",
     "duration": "{{minutes}} dk",
-    "zone": "Bölge",
-    "zones": {
-      "main_hall": "Ana Salon",
-      "pool": "Yüzme Havuzu",
-      "yoga_studio": "Yoga Stüdyosu",
-      "cardio": "Kardiyo Bölgesi",
-      "weights": "Ağırlık Odası"
-    }
+    "checkIn": "Giriş Yap",
+    "checkOut": "Çıkış Yap",
+    "activeSession": "Antrenman devam ediyor",
+    "checkedInAt": "{{time}} girişi yapıldı",
+    "sessionEnded": "Seans kaydedildi",
+    "gymVisit": "Spor Salonu Ziyareti"
   },
   "profile": {
     "title": "Profil",
@@ -92,7 +106,7 @@
     "biometricDesc": "Face ID veya parmak izi kullan",
     "biometricNotAvailable": "Bu cihazda biyometrik kimlik doğrulama mevcut değil",
     "account": "Hesap",
-    "studentId": "Öğrenci Numarası",
+    "studentNumber": "Öğrenci Numarası",
     "faculty": "Fakülte",
     "enrollmentYear": "Kayıt Yılı",
     "logoutConfirmTitle": "Çıkış Yap",
@@ -102,7 +116,7 @@
   },
   "tabs": {
     "home": "Ana Sayfa",
-    "qr": "Pas",
+    "scan": "Ödeme",
     "history": "Geçmiş",
     "profile": "Profil"
   },

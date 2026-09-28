@@ -10,25 +10,26 @@
     "confirm": "Confirm",
     "back": "Back",
     "close": "Close",
-    "ok": "OK"
+    "ok": "OK",
+    "success": "Success"
   },
   "auth": {
     "title": "Welcome to UniGym",
     "subtitle": "Sign in with your university credentials",
-    "studentId": "Student ID",
-    "studentIdPlaceholder": "Enter your student ID",
+    "studentId": "Student Number",
+    "studentIdPlaceholder": "e.g. STD23141035",
     "passportId": "Passport Number",
     "passportIdPlaceholder": "Enter your passport number",
     "signIn": "Sign In",
     "signingIn": "Signing in...",
     "biometricPrompt": "Authenticate to access UniGym",
     "biometricFallback": "Use Password",
-    "errorInvalidCredentials": "Invalid Student ID or Passport Number",
+    "errorInvalidCredentials": "Invalid Student Number or Passport Number",
     "errorNetwork": "Network error. Please try again.",
     "errorGeneric": "Login failed. Please try again.",
-    "studentIdRequired": "Student ID is required",
+    "studentIdRequired": "Student Number is required",
     "passportRequired": "Passport number is required",
-    "studentIdInvalid": "Enter a valid Student ID (6–12 characters)",
+    "studentIdInvalid": "Enter a valid Student Number (e.g. STD23141035)",
     "passportInvalid": "Enter a valid Passport number"
   },
   "dashboard": {
@@ -44,21 +45,36 @@
     "visitsRemaining": "{{count}} visit remaining",
     "visitsRemaining_other": "{{count}} visits remaining",
     "unlimited": "Unlimited",
-    "visitsThisMonth": "Visits this month",
-    "getQrPass": "Show Entry Pass",
-    "activePass": "Active Pass",
-    "zones": "Zones",
-    "plan": "Plan"
-  },
-  "qr": {
-    "title": "Entry Pass",
-    "subtitle": "Show this at the turnstile",
-    "rotatesIn": "Refreshes in {{seconds}}s",
-    "scanning": "Hold steady for scanning",
-    "tapToRefresh": "Tap to refresh",
-    "secureNote": "This code is unique to you and expires automatically",
+    "totalVisits": "Total Visits",
+    "scanReceipt": "Scan Payment Receipt",
+    "plan": "Plan",
     "noMembership": "No active membership",
-    "noMembershipDesc": "Your membership has expired or is not active"
+    "noMembershipHint": "Scan a payment receipt to activate"
+  },
+  "scan": {
+    "title": "Payment Verification",
+    "subtitle": "Scan or upload your gym payment receipt",
+    "takePhoto": "Take Photo",
+    "uploadGallery": "Upload from Gallery",
+    "processing": "Processing receipt...",
+    "cameraPermission": "Camera access is required to scan receipts",
+    "galleryPermission": "Gallery access is required to upload receipt photos",
+    "grantPermission": "Grant Permission",
+    "successTitle": "Receipt Verified!",
+    "successMessage": "Membership extended until {{date}}",
+    "errorNameMismatch": "Name on receipt does not match your profile",
+    "errorDateExpired": "Receipt date is too old — must be within the last 7 days",
+    "errorNoDate": "Could not detect the payment date — please align the receipt clearly",
+    "errorNoName": "Could not detect the student name on the receipt",
+    "errorGeneric": "Could not process this receipt. Please try again.",
+    "detectedFields": "Detected Fields",
+    "studentName": "Student Name",
+    "studentNumber": "Student Number",
+    "paymentDate": "Payment Date",
+    "referenceId": "Reference ID",
+    "amount": "Amount",
+    "verifyReceipt": "Verify & Activate",
+    "retake": "Retake / Re-upload"
   },
   "history": {
     "title": "Visit History",
@@ -69,14 +85,12 @@
     "timeIn": "Check-in",
     "timeOut": "Check-out",
     "duration": "{{minutes}} min",
-    "zone": "Zone",
-    "zones": {
-      "main_hall": "Main Hall",
-      "pool": "Swimming Pool",
-      "yoga_studio": "Yoga Studio",
-      "cardio": "Cardio Zone",
-      "weights": "Weights Room"
-    }
+    "checkIn": "Check In",
+    "checkOut": "Check Out",
+    "activeSession": "Currently working out",
+    "checkedInAt": "Checked in at {{time}}",
+    "sessionEnded": "Session recorded",
+    "gymVisit": "Gym Visit"
   },
   "profile": {
     "title": "Profile",
@@ -92,7 +106,7 @@
     "biometricDesc": "Use Face ID or fingerprint to unlock",
     "biometricNotAvailable": "Biometric authentication is not available on this device",
     "account": "Account",
-    "studentId": "Student ID",
+    "studentNumber": "Student Number",
     "faculty": "Faculty",
     "enrollmentYear": "Enrollment Year",
     "logoutConfirmTitle": "Log Out",
@@ -102,7 +116,7 @@
   },
   "tabs": {
     "home": "Home",
-    "qr": "Pass",
+    "scan": "Scan",
     "history": "History",
     "profile": "Profile"
   },

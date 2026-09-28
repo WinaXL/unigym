@@ -13,5 +13,5 @@ export function validatePassport(passport: string): string | null {
 
 export function maskPassport(passport: string): string {
   if (passport.length <= 4) return passport;
-  return passport.slice(0, 2) + '•'.repeat(passport.length - 4) + passport.slice(-2);
+  return passport.slice(0, 2) + '\u2022'.repeat(passport.length - 4) + passport.slice(-2);
 }

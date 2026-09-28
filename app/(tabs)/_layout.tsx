@@ -61,11 +61,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="qr"
+        name="scan"
         options={{
-          title: t('tabs.qr'),
+          title: t('tabs.scan'),
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon name={focused ? 'qr-code' : 'qr-code-outline'} focused={focused} color={color} />
+            <TabIcon name={focused ? 'receipt' : 'receipt-outline'} focused={focused} color={color} />
           ),
         }}
       />

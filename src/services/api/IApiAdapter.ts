@@ -2,7 +2,7 @@
 import type { AuthChallenge, LoginCredentials, AuthResponse, TokenPair, UserProfile } from '../../types/auth';
 import type { Membership } from '../../types/membership';
 import type { AttendancePage } from '../../types/attendance';
-import type { QrTokenPayload, ValidationResult } from '../../types/api';
+import type { ReceiptData, ReceiptValidationResult } from '../../types/api';
 
 /**
  * IApiAdapter — The single swap point for backend integrations.
@@ -18,25 +18,9 @@ import type { QrTokenPayload, ValidationResult } from '../../types/api';
 export interface IApiAdapter {
   // ── Authentication ──────────────────────────────────────────────────────────
 
-  /**
-   * Fetch a one-time authentication challenge (salt + nonce).
-   * The client hashes the passport with the salt before calling login().
-   */
   getAuthChallenge(): Promise<AuthChallenge>;
-
-  /**
-   * Authenticate the student. Credentials contain hashed (never raw) passport.
-   */
   login(credentials: LoginCredentials): Promise<AuthResponse>;
-
-  /**
-   * Exchange a valid refresh token for a new token pair.
-   */
   refreshToken(refreshToken: string): Promise<TokenPair>;
-
-  /**
-   * Invalidate the refresh token on the server (logout).
-   */
   logout(refreshToken: string): Promise<void>;
 
   // ── Profile ──────────────────────────────────────────────────────────────────
@@ -51,16 +35,11 @@ export interface IApiAdapter {
 
   getAttendanceHistory(userId: string, page: number): Promise<AttendancePage>;
 
-  // ── QR / Turnstile ───────────────────────────────────────────────────────────
+  // ── Receipt / Payment Validation ─────────────────────────────────────────────
 
   /**
-   * Generate a new short-lived QR token for turnstile entry.
-   * Returns a TOTP-derived compact JWT.
+   * Validate a scanned receipt against the user profile.
+   * On success, activates/extends the membership.
    */
-  generateQrToken(userId: string): Promise<QrTokenPayload>;
-
-  /**
-   * (Used by the scanner / server) Validate a QR token.
-   */
-  validateQrToken(token: string): Promise<ValidationResult>;
+  validateReceipt(userId: string, receipt: ReceiptData): Promise<ReceiptValidationResult>;
 }

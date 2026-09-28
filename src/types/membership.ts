@@ -14,5 +14,4 @@ export interface Membership {
   quotaTotal?: number;    // undefined for unlimited
   quotaUsed?: number;
   quotaRemaining?: number;
-  allowedZones: string[]; // e.g. ['main_hall', 'pool', 'yoga']
 }

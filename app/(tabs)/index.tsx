@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
@@ -41,19 +40,16 @@ export default function DashboardScreen() {
   const totalVisits =
     attendance?.pages?.flatMap((p) => p.records).length ?? 0;
 
-  function handleQrPress() {
+  function handleScanPress() {
     hapticService.medium();
-    router.push('/(tabs)/qr');
+    router.push('/(tabs)/scan');
   }
 
   return (
     <SafeScreen noPadding>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={[styles.container, { paddingHorizontal: Spacing[6] }]}>
         {/* Header */}
-        <View style={[styles.header, { paddingHorizontal: Spacing[6] }]}>
+        <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={[styles.greeting, { color: colors.textSecondary }]}>{greeting}</Text>
             <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
@@ -67,8 +63,8 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        <View style={[styles.content, { paddingHorizontal: Spacing[6] }]}>
-          {/* Membership Card */}
+        {/* Membership Card */}
+        <View style={styles.cardSection}>
           {membershipLoading ? (
             <View style={[styles.skeletonCard, { backgroundColor: colors.surfaceElevated }]}>
               <ActivityIndicator color={colors.primary} />
@@ -79,86 +75,65 @@ export default function DashboardScreen() {
               studentName={user?.fullName ?? ''}
               studentId={user?.studentId ?? ''}
             />
-          ) : null}
-
-          {/* Quick Action: Get QR Pass */}
-          <TouchableOpacity
-            style={[styles.qrButton, { backgroundColor: colors.primary }]}
-            onPress={handleQrPress}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="qr-code" size={24} color="#FFFFFF" />
-            <Text style={styles.qrButtonText}>{t('dashboard.getQrPass')}</Text>
-            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
-          </TouchableOpacity>
-
-          {/* Stats Row */}
-          <View style={styles.statsRow}>
-            <Card style={styles.statCard}>
-              <Text style={[styles.statValue, { color: colors.primary }]}>
-                {membership?.daysRemaining ?? '—'}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-                {t('dashboard.daysRemaining', { count: membership?.daysRemaining ?? 0 })}
-              </Text>
-            </Card>
-            <Card style={styles.statCard}>
-              <Text style={[styles.statValue, { color: colors.accent }]}>
-                {totalVisits}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-                {t('dashboard.visitsThisMonth')}
-              </Text>
-            </Card>
-            <Card style={styles.statCard}>
-              <Text style={[styles.statValue, { color: colors.textPrimary }]}>
-                {membership?.quotaType === 'unlimited'
-                  ? '∞'
-                  : membership?.quotaRemaining ?? '—'}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-                {t('dashboard.visitsRemaining', { count: membership?.quotaRemaining ?? 0 })}
-              </Text>
-            </Card>
-          </View>
-
-          {/* Allowed Zones */}
-          {membership?.allowedZones && membership.allowedZones.length > 0 && (
+          ) : (
             <Card>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-                {t('dashboard.zones')}
+              <Text style={[styles.noMemberTitle, { color: colors.textPrimary }]}>
+                {t('dashboard.noMembership')}
               </Text>
-              <View style={styles.zonesGrid}>
-                {membership.allowedZones.map((zone: string) => (
-                  <View
-                    key={zone}
-                    style={[styles.zoneChip, { backgroundColor: colors.primaryLight }]}
-                  >
-                    <Text style={[styles.zoneChipText, { color: colors.primary }]}>
-                      {t(`history.zones.${zone}` as any)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+              <Text style={[styles.noMemberHint, { color: colors.textSecondary }]}>
+                {t('dashboard.noMembershipHint')}
+              </Text>
             </Card>
           )}
         </View>
-      </ScrollView>
+
+        {/* Stats Row */}
+        <View style={styles.statsRow}>
+          <Card style={styles.statCard}>
+            <Text style={[styles.statValue, { color: colors.primary }]}>
+              {membership?.daysRemaining ?? '—'}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              {t('dashboard.daysRemaining', { count: membership?.daysRemaining ?? 0 })}
+            </Text>
+          </Card>
+          <Card style={styles.statCard}>
+            <Text style={[styles.statValue, { color: colors.accent }]}>
+              {totalVisits}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              {t('dashboard.totalVisits')}
+            </Text>
+          </Card>
+        </View>
+
+        {/* Scan Receipt Button */}
+        <TouchableOpacity
+          style={[styles.scanButton, { backgroundColor: colors.primary }]}
+          onPress={handleScanPress}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="receipt-outline" size={24} color="#FFFFFF" />
+          <Text style={styles.scanButtonText}>{t('dashboard.scanReceipt')}</Text>
+          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+        </TouchableOpacity>
+      </View>
     </SafeScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    flexGrow: 1,
+  container: {
+    flex: 1,
     paddingTop: Spacing[6],
-    paddingBottom: Spacing[10],
+    paddingBottom: Spacing[4],
+    justifyContent: 'flex-start',
+    gap: Spacing[5],
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing[6],
   },
   headerText: { flex: 1 },
   greeting: {
@@ -183,27 +158,22 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.bold,
     color: '#FFFFFF',
   },
-  content: {
-    gap: Spacing[4],
-  },
+  cardSection: {},
   skeletonCard: {
     height: 200,
     borderRadius: BorderRadius['2xl'],
     alignItems: 'center',
     justifyContent: 'center',
   },
-  qrButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing[3],
-    padding: Spacing[5],
-    borderRadius: BorderRadius.xl,
-  },
-  qrButtonText: {
-    flex: 1,
+  noMemberTitle: {
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
-    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: Spacing[2],
+  },
+  noMemberHint: {
+    fontSize: Typography.fontSize.sm,
+    textAlign: 'center',
   },
   statsRow: {
     flexDirection: 'row',
@@ -226,23 +196,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 16,
   },
-  sectionTitle: {
+  scanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[3],
+    padding: Spacing[5],
+    borderRadius: BorderRadius.xl,
+    marginTop: 'auto',
+  },
+  scanButtonText: {
+    flex: 1,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
-    marginBottom: Spacing[3],
-  },
-  zonesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing[2],
-  },
-  zoneChip: {
-    paddingHorizontal: Spacing[3],
-    paddingVertical: Spacing[1.5],
-    borderRadius: BorderRadius.full,
-  },
-  zoneChipText: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
+    color: '#FFFFFF',
   },
 });

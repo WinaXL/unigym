@@ -10,25 +10,26 @@
     "confirm": "Подтвердить",
     "back": "Назад",
     "close": "Закрыть",
-    "ok": "ОК"
+    "ok": "ОК",
+    "success": "Успешно"
   },
   "auth": {
     "title": "Добро пожаловать в UniGym",
     "subtitle": "Войдите с помощью университетских учётных данных",
-    "studentId": "Студенческий билет",
-    "studentIdPlaceholder": "Введите номер студенческого билета",
+    "studentId": "Номер студента",
+    "studentIdPlaceholder": "напр. STD23141035",
     "passportId": "Номер паспорта",
     "passportIdPlaceholder": "Введите номер паспорта",
     "signIn": "Войти",
     "signingIn": "Вход...",
     "biometricPrompt": "Подтвердите личность для входа в UniGym",
     "biometricFallback": "Использовать пароль",
-    "errorInvalidCredentials": "Неверный студенческий билет или номер паспорта",
+    "errorInvalidCredentials": "Неверный номер студента или номер паспорта",
     "errorNetwork": "Ошибка сети. Попробуйте снова.",
     "errorGeneric": "Ошибка входа. Попробуйте снова.",
-    "studentIdRequired": "Введите номер студенческого билета",
+    "studentIdRequired": "Введите номер студента",
     "passportRequired": "Введите номер паспорта",
-    "studentIdInvalid": "Введите корректный номер (6–12 символов)",
+    "studentIdInvalid": "Введите корректный номер студента (напр. STD23141035)",
     "passportInvalid": "Введите корректный номер паспорта"
   },
   "dashboard": {
@@ -46,21 +47,36 @@
     "visitsRemaining_few": "Осталось {{count}} посещения",
     "visitsRemaining_other": "Осталось {{count}} посещений",
     "unlimited": "Безлимитный",
-    "visitsThisMonth": "Посещений в этом месяце",
-    "getQrPass": "Показать пропуск",
-    "activePass": "Активный пропуск",
-    "zones": "Зоны",
-    "plan": "Тариф"
-  },
-  "qr": {
-    "title": "Пропуск",
-    "subtitle": "Покажите на турникете",
-    "rotatesIn": "Обновится через {{seconds}}с",
-    "scanning": "Держите неподвижно при сканировании",
-    "tapToRefresh": "Нажмите для обновления",
-    "secureNote": "Этот код уникален для вас и автоматически истекает",
+    "totalVisits": "Всего посещений",
+    "scanReceipt": "Сканировать чек оплаты",
+    "plan": "Тариф",
     "noMembership": "Нет активного членства",
-    "noMembershipDesc": "Ваше членство истекло или неактивно"
+    "noMembershipHint": "Отсканируйте чек оплаты для активации"
+  },
+  "scan": {
+    "title": "Подтверждение оплаты",
+    "subtitle": "Отсканируйте или загрузите чек оплаты за спортзал",
+    "takePhoto": "Сделать фото",
+    "uploadGallery": "Загрузить из галереи",
+    "processing": "Обработка чека...",
+    "cameraPermission": "Доступ к камере необходим для сканирования чеков",
+    "galleryPermission": "Доступ к галерее необходим для загрузки фото чеков",
+    "grantPermission": "Предоставить доступ",
+    "successTitle": "Чек подтверждён!",
+    "successMessage": "Членство продлено до {{date}}",
+    "errorNameMismatch": "Имя на чеке не совпадает с вашим профилем",
+    "errorDateExpired": "Дата чека слишком старая — должна быть в пределах 7 дней",
+    "errorNoDate": "Не удалось распознать дату оплаты — расположите чек ровно",
+    "errorNoName": "Не удалось распознать имя студента на чеке",
+    "errorGeneric": "Не удалось обработать чек. Попробуйте снова.",
+    "detectedFields": "Распознанные данные",
+    "studentName": "Имя студента",
+    "studentNumber": "Номер студента",
+    "paymentDate": "Дата оплаты",
+    "referenceId": "Номер квитанции",
+    "amount": "Сумма",
+    "verifyReceipt": "Подтвердить и активировать",
+    "retake": "Переснять / перезагрузить"
   },
   "history": {
     "title": "История посещений",
@@ -71,14 +87,12 @@
     "timeIn": "Вход",
     "timeOut": "Выход",
     "duration": "{{minutes}} мин",
-    "zone": "Зона",
-    "zones": {
-      "main_hall": "Главный зал",
-      "pool": "Бассейн",
-      "yoga_studio": "Йога-студия",
-      "cardio": "Кардио",
-      "weights": "Тренажёры"
-    }
+    "checkIn": "Отметить вход",
+    "checkOut": "Отметить выход",
+    "activeSession": "Тренировка в процессе",
+    "checkedInAt": "Вход в {{time}}",
+    "sessionEnded": "Сессия записана",
+    "gymVisit": "Посещение зала"
   },
   "profile": {
     "title": "Профиль",
@@ -94,7 +108,7 @@
     "biometricDesc": "Использовать Face ID или отпечаток пальца",
     "biometricNotAvailable": "Биометрия недоступна на этом устройстве",
     "account": "Аккаунт",
-    "studentId": "Студенческий билет",
+    "studentNumber": "Номер студента",
     "faculty": "Факультет",
     "enrollmentYear": "Год зачисления",
     "logoutConfirmTitle": "Выход",
@@ -104,7 +118,7 @@
   },
   "tabs": {
     "home": "Главная",
-    "qr": "Пропуск",
+    "scan": "Оплата",
     "history": "История",
     "profile": "Профиль"
   },

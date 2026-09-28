@@ -75,11 +75,11 @@ npm run ios
 
 ## 🔑 Demo Credentials (Mock Mode)
 
-| Student ID | Full Name | Plan | Password / Passport |
+| Student Number | Full Name | Plan | Password / Passport |
 |---|---|---|---|
-| `STU001` | Ayana Bekova | Monthly Unlimited (All main zones) | Any 5+ chars (e.g. `12345`) |
-| `STU002` | Dmitri Volkov | 10-Visit Pack (6 remaining) | Any 5+ chars (e.g. `12345`) |
-| `STU003` | Elif Şahin | Semester Pass (Includes Pool) | Any 5+ chars (e.g. `12345`) |
+| `STD23141035` | Ayana Bekova | Monthly Unlimited | Any 5+ chars (e.g. `12345`) |
+| `STD22130920` | Dmitri Volkov | 10-Visit Pack (6 remaining) | Any 5+ chars (e.g. `12345`) |
+| `STD24150712` | Elif Şahin | Semester Pass | Any 5+ chars (e.g. `12345`) |
 
 ---
 
