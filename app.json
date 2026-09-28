@@ -9,14 +9,22 @@
     "scheme": "unigym",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.unigym.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "NSFaceIDUsageDescription": "UniGym uses Face ID to securely authenticate you."
       }
     },
     "android": {
+      "package": "com.unigym.app",
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#2563EB",
-        "foregroundImage": "./assets/adaptive-icon.png"
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -24,20 +32,42 @@
       "bundler": "metro",
       "favicon": "./assets/favicon.png"
     },
-    "extra": {
-      "EXPO_PUBLIC_API_MODE": "mock"
-    },
     "plugins": [
       "expo-router",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "UniGym uses the camera to scan your gym payment receipt.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "UniGym needs access to your photos so you can upload a payment receipt.",
+          "cameraPermission": "UniGym uses the camera to scan your gym payment receipt.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-secure-store",
         {
-          "faceIDPermission": "Allow UniGym to use Face ID for secure token storage."
+          "configureAndroidBackup": true,
+          "faceIDPermission": "Allow UniGym to use Face ID to unlock the app."
         }
       ],
       "expo-status-bar",
       "expo-font",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#2563EB"
+        }
+      ],
       "expo-local-authentication"
     ]
   }

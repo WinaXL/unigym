@@ -31,10 +31,7 @@ export default function ScanScreen() {
         </View>
 
         <View style={styles.scannerWrapper}>
-          <ReceiptScannerFlow
-            isOnboarding={false}
-            onSuccess={handleSuccess}
-          />
+          <ReceiptScannerFlow onSuccess={handleSuccess} />
         </View>
       </View>
     </SafeScreen>

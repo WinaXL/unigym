@@ -11,7 +11,11 @@ import type { IApiAdapter } from './IApiAdapter';
 import type { AuthChallenge, LoginCredentials, AuthResponse, TokenPair, UserProfile } from '../../types/auth';
 import type { Membership } from '../../types/membership';
 import type { AttendancePage } from '../../types/attendance';
-import type { ReceiptData, ReceiptValidationResult } from '../../types/api';
+import type {
+  ReceiptData,
+  ReceiptValidationContext,
+  ReceiptValidationResult,
+} from '../../types/api';
 import { API_BASE_URL } from '../../core/constants';
 
 export class UniversityApiAdapter implements IApiAdapter {
@@ -61,21 +65,30 @@ export class UniversityApiAdapter implements IApiAdapter {
   }
 
   async getProfile(userId: string): Promise<UserProfile> {
-    return this._fetch(`/users/${userId}`);
+    return this._fetch(`/users/${encodeURIComponent(userId)}`);
   }
 
-  async getMembership(userId: string): Promise<Membership> {
-    return this._fetch(`/users/${userId}/membership`);
+  async getMembership(userId: string): Promise<Membership | null> {
+    return this._fetch(`/users/${encodeURIComponent(userId)}/membership`);
   }
 
   async getAttendanceHistory(userId: string, page: number): Promise<AttendancePage> {
-    return this._fetch(`/users/${userId}/attendance?page=${page}`);
+    return this._fetch(`/users/${encodeURIComponent(userId)}/attendance?page=${page}`);
   }
 
-  async validateReceipt(userId: string, receipt: ReceiptData): Promise<ReceiptValidationResult> {
-    return this._fetch(`/users/${userId}/receipt/validate`, {
+  /**
+   * The server is the authority here: it owns the spent-receipt ledger, the
+   * ownership check against the bound student, the freshness window and the
+   * granted expiry date. The client sends what it scanned plus which student is
+   * currently bound, and caches whatever comes back.
+   */
+  async validateReceipt(
+    receipt: ReceiptData,
+    context: ReceiptValidationContext
+  ): Promise<ReceiptValidationResult> {
+    return this._fetch('/receipts/validate', {
       method: 'POST',
-      body: JSON.stringify(receipt),
+      body: JSON.stringify({ receipt, context }),
     });
   }
 }

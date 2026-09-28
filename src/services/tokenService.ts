@@ -1,64 +1,70 @@
 // src/services/tokenService.ts
 /**
- * tokenService — Manages JWT storage via the platform-aware `storage` layer.
+ * tokenService — credential and preference storage.
  *
- * On native: hardware-backed expo-secure-store (iOS Keychain / Android Keystore).
- * On web:    sessionStorage for tokens (tab-scoped), localStorage for preferences.
+ * Tokens go to `secureStorage`, which is the Android Keystore and the iOS
+ * Keychain on device. Preferences go to plain storage.
  *
- * NEVER stores raw PII. Only short-lived access/refresh tokens + preferences.
+ * This file previously documented hardware-backed storage that it did not
+ * actually use: every value went through unencrypted AsyncStorage. The routing
+ * below now matches the description.
+ *
+ * Nothing in the app calls this yet — it exists for the authenticated flows that
+ * arrive with the real university API.
  */
-import { storage } from './storage';
+import { storage, secureStorage, clearKeys } from './storage';
 import { STORAGE_KEYS } from '../core/constants';
 import type { TokenPair } from '../types/auth';
 
 export const tokenService = {
   async storeTokens(tokens: TokenPair & { totpSeed?: string }): Promise<void> {
     await Promise.all([
-      storage.setItem(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken),
-      storage.setItem(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken),
-      storage.setItem(STORAGE_KEYS.TOKEN_EXPIRES_AT, String(tokens.expiresAt)),
+      secureStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken),
+      secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken),
+      secureStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRES_AT, String(tokens.expiresAt)),
       ...(tokens.totpSeed
-        ? [storage.setItem(STORAGE_KEYS.TOTP_SEED, tokens.totpSeed)]
+        ? [secureStorage.setItem(STORAGE_KEYS.TOTP_SEED, tokens.totpSeed)]
         : []),
     ]);
   },
 
   async getAccessToken(): Promise<string | null> {
-    return storage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    return secureStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
   },
 
   async getRefreshToken(): Promise<string | null> {
-    return storage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    return secureStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
   },
 
   async getTokenExpiresAt(): Promise<number | null> {
-    const val = await storage.getItem(STORAGE_KEYS.TOKEN_EXPIRES_AT);
-    return val ? parseInt(val, 10) : null;
+    const val = await secureStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRES_AT);
+    if (!val) return null;
+    const parsed = Number.parseInt(val, 10);
+    return Number.isFinite(parsed) ? parsed : null;
   },
 
   async getTotpSeed(): Promise<string | null> {
-    return storage.getItem(STORAGE_KEYS.TOTP_SEED);
+    return secureStorage.getItem(STORAGE_KEYS.TOTP_SEED);
   },
 
   async storeUserId(userId: string): Promise<void> {
-    await storage.setItem(STORAGE_KEYS.USER_ID, userId);
+    await secureStorage.setItem(STORAGE_KEYS.USER_ID, userId);
   },
 
   async getUserId(): Promise<string | null> {
-    return storage.getItem(STORAGE_KEYS.USER_ID);
+    return secureStorage.getItem(STORAGE_KEYS.USER_ID);
   },
 
   async isAccessTokenValid(): Promise<boolean> {
     const expiresAt = await tokenService.getTokenExpiresAt();
     if (!expiresAt) return false;
-    // Treat as expired 60 seconds early to avoid race conditions
+    // Treat as expired 60 seconds early to avoid races around the boundary.
     return Date.now() < expiresAt - 60_000;
   },
 
+  /** Clears credentials and preferences. Leaves server-owned state untouched. */
   async clearAll(): Promise<void> {
-    await Promise.all(
-      Object.values(STORAGE_KEYS).map((key) => storage.deleteItem(key))
-    );
+    await clearKeys(Object.values(STORAGE_KEYS));
   },
 
   async storePreference(key: string, value: string): Promise<void> {

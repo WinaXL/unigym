@@ -5,7 +5,7 @@
  */
 import type { IApiAdapter } from './api/IApiAdapter';
 import { tokenService } from './tokenService';
-import type { AuthResponse, TokenPair, UserProfile } from '../types/auth';
+import type { AuthResponse, TokenPair } from '../types/auth';
 
 /**
  * SHA-256 hash of the passport number with server-provided salt.

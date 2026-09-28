@@ -1,5 +1,5 @@
 // src/components/scanner/ReceiptScannerFlow.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ScrollView,
   Modal,
   Platform,
+  Linking,
   KeyboardAvoidingView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -22,56 +23,132 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAuthStore } from '../../stores/authStore';
-import { useMembershipStore } from '../../stores/membershipStore';
-import { parseReceiptImage } from '../../services/receiptParser';
+import { useApiAdapter } from '../../services/ApiProvider';
+import { membershipService } from '../../services/membershipService';
+import { parseReceiptImage, OcrUnavailableError } from '../../services/receiptParser';
 import { hapticService } from '../../services/hapticService';
 import { Typography, Spacing, BorderRadius } from '../../theme';
 import { formatDate } from '../../utils/dateUtils';
-import type { ReceiptData } from '../../types/api';
-import type { UserProfile } from '../../types/auth';
+import type { ReceiptData, ReceiptRejectionCode } from '../../types/api';
 
 type Step = 'idle' | 'camera' | 'processing' | 'verify_modal';
 
 interface ReceiptScannerFlowProps {
-  isOnboarding?: boolean;
   onSuccess?: (expiryDate: string) => void;
   onCancel?: () => void;
 }
 
-export function ReceiptScannerFlow({
-  isOnboarding = false,
-  onSuccess,
-  onCancel,
-}: ReceiptScannerFlowProps) {
+/** Maps a server rejection onto a user-facing message. */
+const REJECTION_MESSAGE_KEYS: Record<ReceiptRejectionCode, string> = {
+  NO_NAME: 'scan.errorNoName',
+  NO_STUDENT_NUMBER: 'scan.errorNoStudentNumber',
+  NO_DATE: 'scan.errorNoDate',
+  INVALID_DATE: 'scan.errorInvalidDate',
+  INVALID_REFERENCE: 'scan.errorInvalidReference',
+  ALREADY_USED: 'scan.errorAlreadyUsed',
+  DATE_EXPIRED: 'scan.errorDateExpired',
+  FUTURE_DATE: 'scan.errorFutureDate',
+  NAME_MISMATCH: 'scan.errorNameMismatch',
+  ID_MISMATCH: 'scan.errorAnotherStudent',
+  LEDGER_UNAVAILABLE: 'scan.errorLedgerUnavailable',
+  NOT_READY: 'scan.errorNotReady',
+  IN_PROGRESS: 'scan.errorInProgress',
+  GENERIC: 'scan.errorGeneric',
+};
+
+export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const adapter = useApiAdapter();
   const user = useAuthStore((s) => s.user);
 
   const [step, setStep] = useState<Step>('idle');
   const [loading, setLoading] = useState(false);
+  const [capturing, setCapturing] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
   const [expiryDate, setExpiryDate] = useState('');
+  const [wasSimulated, setWasSimulated] = useState(false);
 
-  // Editable parsed fields
   const [studentName, setStudentName] = useState('');
   const [studentNumber, setStudentNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [referenceId, setReferenceId] = useState('');
-  const [amount, setAmount] = useState('15,000 KZT');
+  const [amount, setAmount] = useState('');
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
 
+  // Async work started before an unmount must not write state afterwards.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  function failWith(messageKey: string) {
+    if (!mountedRef.current) return;
+    hapticService.error();
+    Alert.alert(t('common.error'), t(messageKey));
+  }
+
+  async function processImageUri(uri: string) {
+    if (!mountedRef.current) return;
+    setStep('processing');
+
+    try {
+      const parsed = await parseReceiptImage(uri, {
+        fullName: user?.fullName,
+        studentNumber: user?.studentId,
+      });
+      // The parse takes a moment; the sheet may have been dismissed since.
+      if (!mountedRef.current) return;
+
+      setStudentName(parsed.studentName ?? '');
+      setStudentNumber(parsed.studentNumber ?? '');
+      setPaymentDate(parsed.paymentDate ?? '');
+      setReferenceId(parsed.referenceId ?? '');
+      setAmount(parsed.amount ?? '');
+      setWasSimulated(parsed.simulated);
+      setStep('verify_modal');
+    } catch (error) {
+      if (!mountedRef.current) return;
+      setStep('idle');
+      failWith(
+        error instanceof OcrUnavailableError
+          ? 'scan.errorOcrUnavailable'
+          : 'scan.errorGeneric'
+      );
+    }
+  }
+
   async function handleLaunchCamera() {
     if (Platform.OS === 'web') {
-      await processImageUri('mock://web-camera');
+      // The browser target is a development preview only. Previously this
+      // branch fed a placeholder URI straight into the parser on every platform,
+      // so a membership could be activated with no image at all.
+      if (__DEV__) {
+        await processImageUri('simulated://web-preview');
+      } else {
+        failWith('scan.errorCameraUnsupported');
+      }
       return;
     }
 
     if (!cameraPermission?.granted) {
       const result = await requestCameraPermission();
       if (!result.granted) {
-        Alert.alert(t('common.error'), t('scan.cameraPermission'));
+        // Once the OS stops asking, an in-app prompt is a dead end, so send the
+        // user somewhere they can actually change the setting.
+        if (!result.canAskAgain) {
+          Alert.alert(t('common.error'), t('scan.cameraPermissionBlocked'), [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('scan.openSettings'), onPress: () => void Linking.openSettings() },
+          ]);
+        } else {
+          failWith('scan.cameraPermission');
+        }
         return;
       }
     }
@@ -79,150 +156,115 @@ export function ReceiptScannerFlow({
   }
 
   async function handleCapture() {
-    if (cameraRef.current) {
-      try {
-        const photo = await cameraRef.current.takePictureAsync();
-        if (photo?.uri) {
-          await processImageUri(photo.uri);
-          return;
-        }
-      } catch {
-        // fallback
-      }
+    // Rapid taps would otherwise queue concurrent captures, which iOS rejects.
+    if (capturing) return;
+    if (!cameraRef.current) {
+      failWith('scan.errorCameraUnavailable');
+      return;
     }
-    await processImageUri('mock://camera-capture');
+
+    setCapturing(true);
+    try {
+      const photo = await cameraRef.current.takePictureAsync();
+      if (!photo?.uri) {
+        failWith('scan.errorCameraUnavailable');
+        return;
+      }
+      await processImageUri(photo.uri);
+    } catch {
+      // A camera failure is a failure. It used to fall through to a placeholder
+      // URI, which the parser then turned into a valid receipt.
+      if (mountedRef.current) setStep('idle');
+      failWith('scan.errorCameraUnavailable');
+    } finally {
+      if (mountedRef.current) setCapturing(false);
+    }
   }
 
   async function handlePickGallery() {
+    let result: ImagePicker.ImagePickerResult;
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
+      result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 0.8,
       });
-
-      if (!result.canceled && result.assets?.[0]?.uri) {
-        await processImageUri(result.assets[0].uri);
-      }
     } catch {
-      Alert.alert(t('common.error'), t('scan.galleryPermission'));
+      failWith('scan.errorGalleryUnavailable');
+      return;
     }
-  }
 
-  async function processImageUri(uri: string) {
-    setStep('processing');
-    try {
-      const parsed = await parseReceiptImage(
-        uri,
-        user?.fullName,
-        user?.studentId
-      );
+    if (result.canceled) return;
 
-      setStudentName(parsed.studentName || 'Ayana Bekova');
-      setStudentNumber(parsed.studentNumber || 'STD23141035');
-      setPaymentDate(parsed.paymentDate || new Date().toISOString().split('T')[0]);
-      setReferenceId(parsed.referenceId || `RCP-${Math.floor(100000 + Math.random() * 900000)}`);
-      setAmount(parsed.amount || '15,000 KZT');
-
-      setStep('verify_modal');
-    } catch {
-      hapticService.error();
-      Alert.alert(t('common.error'), t('scan.errorGeneric'));
-      setStep('idle');
+    const uri = result.assets?.[0]?.uri;
+    if (!uri) {
+      failWith('scan.errorGalleryUnavailable');
+      return;
     }
+    await processImageUri(uri);
   }
 
   async function handleConfirmAndActivate() {
-    // Basic field validation
     if (!studentName.trim()) {
-      Alert.alert(t('common.error'), t('scan.errorNoName'));
+      failWith('scan.errorNoName');
       return;
     }
     if (!studentNumber.trim()) {
-      Alert.alert(t('common.error'), t('auth.studentIdRequired'));
+      failWith('scan.errorNoStudentNumber');
       return;
     }
     if (!paymentDate.trim()) {
-      Alert.alert(t('common.error'), t('scan.errorNoDate'));
+      failWith('scan.errorNoDate');
       return;
     }
     if (!referenceId.trim()) {
-      Alert.alert(t('common.error'), t('scan.errorGeneric'));
+      failWith('scan.errorInvalidReference');
       return;
     }
 
     setLoading(true);
-
-    const receiptPayload: ReceiptData = {
-      studentName: studentName.trim(),
-      studentNumber: studentNumber.trim().toUpperCase(),
-      paymentDate: paymentDate.trim(),
-      referenceId: referenceId.trim().toUpperCase(),
-      amount: amount.trim(),
-      planType: 'Monthly Gym Unlimited',
-    };
-
     try {
-      let activeProfile = user;
+      const receipt: ReceiptData = {
+        studentName: studentName.trim(),
+        studentNumber: studentNumber.trim(),
+        paymentDate: paymentDate.trim(),
+        referenceId: referenceId.trim(),
+        amount: amount.trim(),
+        planType: 'Monthly Gym Unlimited',
+      };
 
-      // First-time onboarding: bind profile permanently
-      if (!activeProfile || isOnboarding) {
-        const boundProfile: UserProfile = {
-          id: `user-${Date.now()}`,
-          studentId: studentNumber.trim().toUpperCase(),
-          fullName: studentName.trim(),
-          faculty: 'University Member',
-          enrollmentYear: new Date().getFullYear(),
-        };
-        await useAuthStore.getState().bindProfile(boundProfile);
-        activeProfile = boundProfile;
-      }
-
-      // Validate & activate membership
-      const result = await useMembershipStore
-        .getState()
-        .activateOrExtend(receiptPayload, activeProfile);
+      // The adapter decides. Identity binding and cache writes happen inside the
+      // service, only after this returns a pass.
+      const result = await membershipService.redeemReceipt(adapter, receipt);
+      if (!mountedRef.current) return;
 
       if (result.success && result.membershipExpiryDate) {
         hapticService.success();
         setExpiryDate(result.membershipExpiryDate);
         setSuccessModal(true);
-      } else {
-        hapticService.error();
-        let message = t('scan.errorGeneric');
-        if (result.error === 'ALREADY_USED') {
-          message = t('scan.errorAlreadyUsed');
-        } else if (result.error === 'NAME_MISMATCH') {
-          message = t('scan.errorAnotherStudent');
-        } else if (result.error === 'DATE_EXPIRED') {
-          message = t('scan.errorDateExpired');
-        } else if (result.error === 'NO_DATE') {
-          message = t('scan.errorNoDate');
-        } else if (result.error === 'NO_NAME') {
-          message = t('scan.errorNoName');
-        }
-        Alert.alert(t('common.error'), message);
+        return;
       }
+
+      failWith(REJECTION_MESSAGE_KEYS[result.error ?? 'GENERIC']);
     } catch {
-      hapticService.error();
-      Alert.alert(t('common.error'), t('scan.errorGeneric'));
+      failWith('scan.errorGeneric');
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }
 
   function handleFinish() {
     setSuccessModal(false);
     setStep('idle');
-    if (onSuccess) {
-      onSuccess(expiryDate);
-    }
+    onSuccess?.(expiryDate);
   }
 
   // ── Camera Screen ─────────────────────────────────────────────────────────
   if (step === 'camera') {
     return (
       <View style={styles.cameraContainer}>
-        <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+        {/* `active` stops the capture session when this screen is not showing;
+            tab screens stay mounted, so without it the camera keeps running. */}
+        <CameraView ref={cameraRef} style={styles.camera} facing="back" active />
         <View style={styles.cameraOverlay} pointerEvents="box-none">
           <View style={[styles.cameraFrame, { borderColor: colors.primary }]}>
             <View style={styles.cameraCornerTL} />
@@ -230,22 +272,32 @@ export function ReceiptScannerFlow({
             <View style={styles.cameraCornerBL} />
             <View style={styles.cameraCornerBR} />
           </View>
-          <Text style={styles.cameraHint}>Align receipt within the frame</Text>
+          <Text style={styles.cameraHint}>{t('scan.alignReceipt')}</Text>
         </View>
         <View style={[styles.cameraControls, { backgroundColor: colors.background }]}>
           <TouchableOpacity
             style={styles.controlCancel}
             onPress={() => setStep('idle')}
+            disabled={capturing}
           >
             <Text style={[styles.controlCancelText, { color: colors.textSecondary }]}>
               {t('common.cancel')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.captureButton, { backgroundColor: colors.primary }]}
+            style={[
+              styles.captureButton,
+              { backgroundColor: colors.primary },
+              capturing && styles.captureButtonBusy,
+            ]}
             onPress={handleCapture}
+            disabled={capturing}
           >
-            <View style={styles.captureInner} />
+            {capturing ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <View style={styles.captureInner} />
+            )}
           </TouchableOpacity>
           <View style={{ width: 60 }} />
         </View>
@@ -265,7 +317,6 @@ export function ReceiptScannerFlow({
     );
   }
 
-  // ── Manual Confirmation Fallback Modal ────────────────────────────────────
   return (
     <View style={styles.container}>
       {/* Idle Actions */}
@@ -282,7 +333,7 @@ export function ReceiptScannerFlow({
             {t('scan.takePhoto')}
           </Text>
           <Text style={[styles.actionSubtitle, { color: colors.textSecondary }]}>
-            Scan paper receipt
+            {t('scan.takePhotoHint')}
           </Text>
         </TouchableOpacity>
 
@@ -298,7 +349,7 @@ export function ReceiptScannerFlow({
             {t('scan.uploadGallery')}
           </Text>
           <Text style={[styles.actionSubtitle, { color: colors.textSecondary }]}>
-            Upload screenshot/photo
+            {t('scan.uploadGalleryHint')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -326,6 +377,13 @@ export function ReceiptScannerFlow({
                 </Text>
               </View>
 
+              {wasSimulated && (
+                <View style={[styles.simulatedBanner, { backgroundColor: colors.warning }]}>
+                  <Ionicons name="warning-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.simulatedBannerText}>{t('scan.simulatedNotice')}</Text>
+                </View>
+              )}
+
               <Card style={{ gap: Spacing[3], marginBottom: Spacing[4] }}>
                 {/* Student Full Name */}
                 <View style={styles.inputGroup}>
@@ -336,7 +394,7 @@ export function ReceiptScannerFlow({
                     style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
                     value={studentName}
                     onChangeText={setStudentName}
-                    placeholder="e.g. Ayana Bekova"
+                    placeholder={t('scan.studentNamePlaceholder')}
                     placeholderTextColor={colors.textTertiary}
                   />
                 </View>
@@ -350,7 +408,7 @@ export function ReceiptScannerFlow({
                     style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
                     value={studentNumber}
                     onChangeText={setStudentNumber}
-                    placeholder="e.g. STD23141035"
+                    placeholder={t('scan.studentNumberPlaceholder')}
                     placeholderTextColor={colors.textTertiary}
                     autoCapitalize="characters"
                   />
@@ -359,7 +417,7 @@ export function ReceiptScannerFlow({
                 {/* Payment Date */}
                 <View style={styles.inputGroup}>
                   <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                    {t('scan.paymentDate')} (YYYY-MM-DD)
+                    {t('scan.paymentDate')}
                   </Text>
                   <TextInput
                     style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
@@ -370,22 +428,31 @@ export function ReceiptScannerFlow({
                   />
                 </View>
 
-                {/* Reference ID */}
+                {/* Reference ID — read-only.
+                    This is the anti-replay key: if the user can retype it, the
+                    same physical receipt can be redeemed indefinitely under a
+                    fresh reference. It is shown for transparency only. */}
                 <View style={styles.inputGroup}>
                   <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
                     {t('scan.referenceId')}
                   </Text>
-                  <TextInput
-                    style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
-                    value={referenceId}
-                    onChangeText={setReferenceId}
-                    placeholder="e.g. RCP-819203"
-                    placeholderTextColor={colors.textTertiary}
-                    autoCapitalize="characters"
-                  />
+                  <View
+                    style={[
+                      styles.readOnlyField,
+                      { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
+                    ]}
+                  >
+                    <Text style={[styles.readOnlyValue, { color: colors.textPrimary }]}>
+                      {referenceId || '—'}
+                    </Text>
+                    <Ionicons name="lock-closed" size={14} color={colors.textTertiary} />
+                  </View>
+                  <Text style={[styles.inputHint, { color: colors.textTertiary }]}>
+                    {t('scan.referenceIdLocked')}
+                  </Text>
                 </View>
 
-                {/* Amount / Plan */}
+                {/* Amount */}
                 <View style={styles.inputGroup}>
                   <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
                     {t('scan.amount')}
@@ -413,6 +480,7 @@ export function ReceiptScannerFlow({
                 label={t('scan.retake')}
                 variant="ghost"
                 onPress={() => setStep('idle')}
+                disabled={loading}
                 size="md"
                 style={{ marginTop: Spacing[2] }}
               />
@@ -549,6 +617,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  captureButtonBusy: {
+    opacity: 0.6,
+  },
   captureInner: {
     width: 60,
     height: 60,
@@ -602,12 +673,30 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     textAlign: 'center',
   },
+  simulatedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[2],
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing[3],
+  },
+  simulatedBannerText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+  },
   inputGroup: {
     gap: 4,
   },
   inputLabel: {
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.semibold,
+  },
+  inputHint: {
+    fontSize: Typography.fontSize.xs,
   },
   textInput: {
     borderWidth: 1,
@@ -616,6 +705,21 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing[2],
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.medium,
+  },
+  readOnlyField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing[2],
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[3],
+  },
+  readOnlyValue: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.bold,
+    letterSpacing: 0.5,
   },
   // Celebration
   celebrationOverlay: {

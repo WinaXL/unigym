@@ -11,8 +11,13 @@ import type { IApiAdapter } from './IApiAdapter';
 import type { AuthChallenge, LoginCredentials, AuthResponse, TokenPair, UserProfile } from '../../types/auth';
 import type { Membership } from '../../types/membership';
 import type { AttendancePage, AttendanceRecord } from '../../types/attendance';
-import type { ReceiptData, ReceiptValidationResult } from '../../types/api';
+import type {
+  ReceiptData,
+  ReceiptValidationContext,
+  ReceiptValidationResult,
+} from '../../types/api';
 import { PAGE_SIZE } from '../../core/constants';
+import { mockServerState, LedgerUnavailableError } from './mockServerState';
 
 // ── Seeded Data ──────────────────────────────────────────────────────────────
 
@@ -43,41 +48,8 @@ const MOCK_USERS: Record<string, UserProfile & { passportHash: string }> = {
   },
 };
 
-const MOCK_MEMBERSHIPS: Record<string, Membership> = {
-  'user-001': {
-    id: 'mem-001',
-    userId: 'user-001',
-    status: 'active',
-    plan: 'Monthly Unlimited',
-    startDate: '2026-09-01T00:00:00Z',
-    expiryDate: '2026-10-31T23:59:59Z',
-    daysRemaining: 35,
-    quotaType: 'unlimited',
-  },
-  'user-002': {
-    id: 'mem-002',
-    userId: 'user-002',
-    status: 'active',
-    plan: '10-Visit Pack',
-    startDate: '2026-09-10T00:00:00Z',
-    expiryDate: '2026-12-10T23:59:59Z',
-    daysRemaining: 75,
-    quotaType: 'punch_card',
-    quotaTotal: 10,
-    quotaUsed: 4,
-    quotaRemaining: 6,
-  },
-  'user-003': {
-    id: 'mem-003',
-    userId: 'user-003',
-    status: 'active',
-    plan: 'Semester Pass',
-    startDate: '2026-09-01T00:00:00Z',
-    expiryDate: '2027-01-31T23:59:59Z',
-    daysRemaining: 127,
-    quotaType: 'unlimited',
-  },
-};
+// Seeded membership fixtures were removed: membership standing now comes from
+// mockServerState, which is the only writer of the authoritative record.
 
 function generateHistory(userId: string): AttendanceRecord[] {
   const records: AttendanceRecord[] = [];
@@ -212,11 +184,11 @@ export class MockApiAdapter implements IApiAdapter {
     return profile;
   }
 
-  async getMembership(userId: string): Promise<Membership> {
+  async getMembership(userId: string): Promise<Membership | null> {
     await randomDelay();
-    const membership = MOCK_MEMBERSHIPS[userId];
-    if (!membership) throw { code: 'NOT_FOUND', message: 'Membership not found', statusCode: 404 };
-    return { ...membership };
+    // Standing comes from the simulated server's own record, not from the
+    // seeded fixtures, so that redemptions performed in-app are reflected here.
+    return mockServerState.readMembership(userId);
   }
 
   async getAttendanceHistory(userId: string, page: number): Promise<AttendancePage> {
@@ -234,55 +206,24 @@ export class MockApiAdapter implements IApiAdapter {
     };
   }
 
-  async validateReceipt(userId: string, receipt: ReceiptData): Promise<ReceiptValidationResult> {
+  /**
+   * Delegates entirely to the simulated server state, which owns the ledger,
+   * the ownership rules and the entitlement maths. Nothing is decided here.
+   */
+  async validateReceipt(
+    receipt: ReceiptData,
+    context: ReceiptValidationContext
+  ): Promise<ReceiptValidationResult> {
     await delay(800);
 
-    // Find the user profile
-    const userEntry = Object.values(MOCK_USERS).find((u) => u.id === userId);
-    if (!userEntry) {
-      return { success: false, error: 'GENERIC' };
+    try {
+      return await mockServerState.redeemReceipt(receipt, context);
+    } catch (error) {
+      if (error instanceof LedgerUnavailableError) {
+        return { success: false, receipt, error: 'LEDGER_UNAVAILABLE' };
+      }
+      // A failed write must not read as a grant.
+      return { success: false, receipt, error: 'GENERIC' };
     }
-
-    // Validate name match
-    if (!receipt.studentName) {
-      return { success: false, receipt, error: 'NO_NAME' };
-    }
-    const normalizedReceiptName = receipt.studentName.toLowerCase().trim();
-    const normalizedProfileName = userEntry.fullName.toLowerCase().trim();
-    if (!normalizedReceiptName.includes(normalizedProfileName) && !normalizedProfileName.includes(normalizedReceiptName)) {
-      return { success: false, receipt, error: 'NAME_MISMATCH' };
-    }
-
-    // Validate date
-    if (!receipt.paymentDate) {
-      return { success: false, receipt, error: 'NO_DATE' };
-    }
-    const paymentDate = new Date(receipt.paymentDate);
-    const now = new Date();
-    const daysDiff = Math.floor((now.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysDiff > 7 || daysDiff < 0) {
-      return { success: false, receipt, error: 'DATE_EXPIRED' };
-    }
-
-    // Success — extend membership by 30 days from payment date
-    const expiryDate = new Date(paymentDate);
-    expiryDate.setDate(expiryDate.getDate() + 30);
-
-    // Update mock membership
-    if (MOCK_MEMBERSHIPS[userId]) {
-      MOCK_MEMBERSHIPS[userId] = {
-        ...MOCK_MEMBERSHIPS[userId],
-        status: 'active',
-        startDate: paymentDate.toISOString(),
-        expiryDate: expiryDate.toISOString(),
-        daysRemaining: 30 - daysDiff,
-      };
-    }
-
-    return {
-      success: true,
-      receipt,
-      membershipExpiryDate: expiryDate.toISOString(),
-    };
   }
 }

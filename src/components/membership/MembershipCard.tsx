@@ -3,7 +3,6 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
-import { useThemeColors } from '../../hooks/useThemeColors';
 import { Badge } from '../ui/Badge';
 import { Typography, Spacing, BorderRadius } from '../../theme';
 import type { Membership } from '../../types/membership';

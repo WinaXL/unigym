@@ -1,90 +1,110 @@
 // src/stores/sessionStore.ts
 import { create } from 'zustand';
 import type { AttendanceRecord } from '../types/attendance';
-import { storage } from '../services/storage';
+import { readJson, writeJson, removeKey } from '../services/persistence';
+import { isAttendanceRecord } from '../services/schemas';
 import { STORAGE_KEYS } from '../core/constants';
 import { useHistoryStore } from './historyStore';
+import { localCalendarDate } from '../utils/dateUtils';
 
 interface SessionState {
   activeSession: AttendanceRecord | null;
   isLoading: boolean;
+  /** True while a check-in or check-out is being written. */
+  isMutating: boolean;
 
   loadSession: () => Promise<void>;
-  checkIn: (userId: string) => Promise<AttendanceRecord>;
+  checkIn: (userId: string) => Promise<AttendanceRecord | null>;
   checkOut: () => Promise<AttendanceRecord | null>;
   clearSession: () => Promise<void>;
+}
+
+function newSessionId(): string {
+  return `att-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   activeSession: null,
   isLoading: true,
+  isMutating: false,
 
   loadSession: async () => {
-    try {
-      const data = await storage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
-      if (data) {
-        const record: AttendanceRecord = JSON.parse(data);
-        set({ activeSession: record, isLoading: false });
-        return;
-      }
-    } catch {
-      // noop
+    const outcome = await readJson(STORAGE_KEYS.ACTIVE_SESSION, isAttendanceRecord);
+    if (outcome.status === 'corrupt') {
+      await removeKey(STORAGE_KEYS.ACTIVE_SESSION).catch(() => {});
     }
-    set({ activeSession: null, isLoading: false });
+    set({
+      activeSession: outcome.status === 'ok' ? outcome.value : null,
+      isLoading: false,
+    });
   },
 
   checkIn: async (userId: string) => {
-    const now = new Date();
-    const record: AttendanceRecord = {
-      id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      userId,
-      date: now.toISOString().split('T')[0],
-      timeIn: now.toISOString(),
-    };
+    const { activeSession, isMutating, isLoading } = get();
 
+    // Refuse rather than overwrite. A second check-in used to replace the first
+    // session outright, so the original visit was never recorded. A double tap
+    // reaches here before React has re-rendered the button, so the guard has to
+    // live in the store.
+    if (isMutating || isLoading || activeSession) return activeSession;
+
+    set({ isMutating: true });
     try {
-      await storage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(record));
-    } catch {
-      // noop
-    }
+      const now = new Date();
+      const record: AttendanceRecord = {
+        id: newSessionId(),
+        userId,
+        // Local calendar date: toISOString() would file an early-morning
+        // check-in under the previous day for any timezone ahead of UTC.
+        date: localCalendarDate(now),
+        timeIn: now.toISOString(),
+      };
 
-    set({ activeSession: record });
-    return record;
+      await writeJson(STORAGE_KEYS.ACTIVE_SESSION, record);
+      set({ activeSession: record });
+      return record;
+    } catch {
+      return null;
+    } finally {
+      set({ isMutating: false });
+    }
   },
 
   checkOut: async () => {
-    const { activeSession } = get();
-    if (!activeSession) return null;
+    const { activeSession, isMutating } = get();
+    if (isMutating || !activeSession) return null;
 
-    const now = new Date();
-    const timeInMs = new Date(activeSession.timeIn).getTime();
-    const durationMinutes = Math.max(1, Math.round((now.getTime() - timeInMs) / 60000));
-
-    const completed: AttendanceRecord = {
-      ...activeSession,
-      timeOut: now.toISOString(),
-      durationMinutes,
-    };
-
+    set({ isMutating: true });
     try {
-      await storage.deleteItem(STORAGE_KEYS.ACTIVE_SESSION);
+      const now = new Date();
+      const timeInMs = new Date(activeSession.timeIn).getTime();
+      const durationMinutes = Math.max(
+        1,
+        Math.round((now.getTime() - timeInMs) / 60000)
+      );
+
+      const completed: AttendanceRecord = {
+        ...activeSession,
+        timeOut: now.toISOString(),
+        durationMinutes,
+      };
+
+      // Record the completed visit before dropping the active session, so a
+      // failure here cannot lose the visit entirely.
+      await useHistoryStore.getState().addRecord(completed);
+      await removeKey(STORAGE_KEYS.ACTIVE_SESSION).catch(() => {});
+
+      set({ activeSession: null });
+      return completed;
     } catch {
-      // noop
+      return null;
+    } finally {
+      set({ isMutating: false });
     }
-
-    // Persist to history store
-    await useHistoryStore.getState().addRecord(completed);
-
-    set({ activeSession: null });
-    return completed;
   },
 
   clearSession: async () => {
-    try {
-      await storage.deleteItem(STORAGE_KEYS.ACTIVE_SESSION);
-    } catch {
-      // noop
-    }
-    set({ activeSession: null });
+    await removeKey(STORAGE_KEYS.ACTIVE_SESSION).catch(() => {});
+    set({ activeSession: null, isMutating: false });
   },
 }));

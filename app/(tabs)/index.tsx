@@ -31,9 +31,13 @@ export default function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const userId = useAuthStore((s) => s.userId);
 
-  const { membership, isLoading: membershipLoading } = useMembershipStore();
-  const { activeSession, checkIn, checkOut } = useSessionStore();
-  const { records } = useHistoryStore();
+  const membership = useMembershipStore((s) => s.membership);
+  const membershipLoading = useMembershipStore((s) => s.isLoading);
+  const activeSession = useSessionStore((s) => s.activeSession);
+  const isMutating = useSessionStore((s) => s.isMutating);
+  const checkIn = useSessionStore((s) => s.checkIn);
+  const checkOut = useSessionStore((s) => s.checkOut);
+  const records = useHistoryStore((s) => s.records);
 
   const firstName = user?.fullName?.split(' ')[0] ?? '';
   const greeting = t('dashboard.greeting', {
@@ -123,13 +127,20 @@ export default function DashboardScreen() {
                   variant="danger"
                   size="sm"
                   onPress={handleCheckOut}
+                  loading={isMutating}
+                  disabled={isMutating}
                   haptic="medium"
                 />
               </View>
             ) : (
               <TouchableOpacity
-                style={[styles.checkInButton, { backgroundColor: colors.surfaceSubtle }]}
+                style={[
+                  styles.checkInButton,
+                  { backgroundColor: colors.surfaceSubtle },
+                  isMutating && styles.checkInButtonBusy,
+                ]}
                 onPress={handleCheckIn}
+                disabled={isMutating}
                 activeOpacity={0.8}
               >
                 <Ionicons name="enter-outline" size={20} color={colors.primary} />
@@ -269,6 +280,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing[2],
     paddingVertical: Spacing[3],
+  },
+  checkInButtonBusy: {
+    opacity: 0.6,
   },
   checkInText: {
     fontSize: Typography.fontSize.sm,

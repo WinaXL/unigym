@@ -14,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useThemeColors } from '../../src/hooks/useThemeColors';
-import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { ReceiptScannerFlow } from '../../src/components/scanner/ReceiptScannerFlow';
 import { hapticService } from '../../src/services/hapticService';
@@ -145,7 +144,6 @@ export default function WelcomeScreen() {
 
           <View style={{ flex: 1, padding: Spacing[6] }}>
             <ReceiptScannerFlow
-              isOnboarding={true}
               onSuccess={handleActivationSuccess}
               onCancel={() => setScannerModal(false)}
             />

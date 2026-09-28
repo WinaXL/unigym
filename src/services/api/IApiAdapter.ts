@@ -2,7 +2,11 @@
 import type { AuthChallenge, LoginCredentials, AuthResponse, TokenPair, UserProfile } from '../../types/auth';
 import type { Membership } from '../../types/membership';
 import type { AttendancePage } from '../../types/attendance';
-import type { ReceiptData, ReceiptValidationResult } from '../../types/api';
+import type {
+  ReceiptData,
+  ReceiptValidationContext,
+  ReceiptValidationResult,
+} from '../../types/api';
 
 /**
  * IApiAdapter — The single swap point for backend integrations.
@@ -29,7 +33,8 @@ export interface IApiAdapter {
 
   // ── Membership ───────────────────────────────────────────────────────────────
 
-  getMembership(userId: string): Promise<Membership>;
+  /** Current standing. Returns null when the user has no membership on record. */
+  getMembership(userId: string): Promise<Membership | null>;
 
   // ── Attendance ───────────────────────────────────────────────────────────────
 
@@ -38,8 +43,23 @@ export interface IApiAdapter {
   // ── Receipt / Payment Validation ─────────────────────────────────────────────
 
   /**
-   * Validate a scanned receipt against the user profile.
-   * On success, activates/extends the membership.
+   * Adjudicate a scanned receipt and, if it passes, redeem it.
+   *
+   * This is the single authority on whether a receipt grants access. The
+   * implementation owns the spent-receipt ledger, the ownership check, the
+   * freshness window and the resulting expiry date; callers must treat the
+   * returned membership as fact and must not recompute any of it.
+   *
+   * `context.boundStudentNumber` is null during first-time onboarding, in which
+   * case the identity is taken from the receipt. When it is set, a receipt
+   * belonging to a different student must be refused.
+   *
+   * Policy refusals come back as `{ success: false, error }`. Implementations
+   * must reject the promise only when no verdict could be reached, and callers
+   * must treat that as a refusal rather than a pass.
    */
-  validateReceipt(userId: string, receipt: ReceiptData): Promise<ReceiptValidationResult>;
+  validateReceipt(
+    receipt: ReceiptData,
+    context: ReceiptValidationContext
+  ): Promise<ReceiptValidationResult>;
 }

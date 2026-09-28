@@ -1,5 +1,5 @@
 // app/(tabs)/profile.tsx  — Profile & Settings Screen
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -17,16 +17,15 @@ import { SafeScreen } from '../../src/components/ui/SafeScreen';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { useThemeColors } from '../../src/hooks/useThemeColors';
-import { useAuth } from '../../src/hooks/useAuth';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useMembershipStore } from '../../src/stores/membershipStore';
 import { useSessionStore } from '../../src/stores/sessionStore';
 import { useHistoryStore } from '../../src/stores/historyStore';
-import { storage } from '../../src/services/storage';
+import { useSecurityStore } from '../../src/stores/securityStore';
 import { useThemeStore } from '../../src/stores/themeStore';
 import { useLocaleStore } from '../../src/stores/localeStore';
 import { hapticService } from '../../src/services/hapticService';
-import { tokenService } from '../../src/services/tokenService';
+import { storage } from '../../src/services/storage';
 import { Typography, Spacing, BorderRadius } from '../../src/theme';
 import { SUPPORTED_LANGUAGES, LANGUAGE_LABELS } from '../../src/core/i18n';
 import { STORAGE_KEYS, APP_VERSION } from '../../src/core/constants';
@@ -38,38 +37,34 @@ type ThemeOption = 'light' | 'dark' | 'system';
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
-  const { user, logout } = useAuth();
-  const { preference: themePreference, setPreference } = useThemeStore();
-  const { language, setLanguage } = useLocaleStore();
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
 
-  // Check biometric availability on mount (native only — no hardware in browser)
-  React.useEffect(() => {
-    if (Platform.OS === 'web') return;
-    LocalAuthentication.hasHardwareAsync().then((has) => {
-      setBiometricAvailable(has);
-    }).catch(() => {});
-    tokenService
-      .getPreference(STORAGE_KEYS.BIOMETRIC_ENABLED)
-      .then((val) => setBiometricEnabled(val === 'true'))
-      .catch(() => {});
-  }, []);
+  const user = useAuthStore((s) => s.user);
+  const themePreference = useThemeStore((s) => s.preference);
+  const setPreference = useThemeStore((s) => s.setPreference);
+  const language = useLocaleStore((s) => s.language);
+  const setLanguage = useLocaleStore((s) => s.setLanguage);
+
+  const biometricEnabled = useSecurityStore((s) => s.biometricEnabled);
+  const biometricAvailable = useSecurityStore((s) => s.biometricAvailable);
+  const setBiometricEnabled = useSecurityStore((s) => s.setBiometricEnabled);
 
   async function handleThemeChange(theme: ThemeOption) {
     hapticService.light();
     setPreference(theme);
-    await tokenService.storePreference(STORAGE_KEYS.THEME, theme);
+    await storage.setItem(STORAGE_KEYS.THEME, theme).catch(() => {});
   }
 
   async function handleLanguageChange(lang: SupportedLanguage) {
     hapticService.light();
     setLanguage(lang);
-    await tokenService.storePreference(STORAGE_KEYS.LANGUAGE, lang);
+    await storage.setItem(STORAGE_KEYS.LANGUAGE, lang).catch(() => {});
   }
 
   async function handleBiometricToggle(val: boolean) {
-    if (val && biometricAvailable && Platform.OS !== 'web') {
+    // Prove the user can satisfy the lock before enabling it, so the toggle
+    // cannot leave them shut out of their own app.
+    if (val) {
+      if (!biometricAvailable || Platform.OS === 'web') return;
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: t('auth.biometricPrompt'),
         cancelLabel: t('common.cancel'),
@@ -78,8 +73,7 @@ export default function ProfileScreen() {
       if (!result.success) return;
     }
     hapticService.medium();
-    setBiometricEnabled(val);
-    await tokenService.storePreference(STORAGE_KEYS.BIOMETRIC_ENABLED, val ? 'true' : 'false');
+    await setBiometricEnabled(val);
   }
 
   function handleResetDeviceProfile() {
@@ -93,11 +87,13 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             hapticService.heavy();
+            // Clears client-side state only. The spent-receipt ledger is server
+            // state and is deliberately left intact: resetting the device must
+            // not hand back receipts that have already been redeemed.
             await useAuthStore.getState().clearAuth();
             await useMembershipStore.getState().resetMembership();
             await useSessionStore.getState().clearSession();
             await useHistoryStore.getState().resetHistory();
-            await storage.clearAll();
           },
         },
       ]

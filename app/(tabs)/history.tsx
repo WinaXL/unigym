@@ -23,7 +23,14 @@ import { Typography, Spacing, BorderRadius } from '../../src/theme';
 import { formatDateGroup, formatTime } from '../../src/utils/dateUtils';
 import type { AttendanceRecord } from '../../src/types/attendance';
 
-type Section = { date: string; records: AttendanceRecord[] };
+/**
+ * `key` is the raw YYYY-MM-DD date and `label` is the translated heading.
+ *
+ * These have to stay separate: keying the list on the formatted label meant the
+ * keys changed whenever the user switched language, remounting the entire list,
+ * and any two dates that formatted alike would have collided.
+ */
+type Section = { key: string; label: string; records: AttendanceRecord[] };
 
 function groupByDate(records: AttendanceRecord[], t: (k: string) => string): Section[] {
   const map = new Map<string, AttendanceRecord[]>();
@@ -34,7 +41,11 @@ function groupByDate(records: AttendanceRecord[], t: (k: string) => string): Sec
   }
   return Array.from(map.entries())
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([date, recs]) => ({ date: formatDateGroup(date, t), records: recs }));
+    .map(([date, recs]) => ({
+      key: date,
+      label: formatDateGroup(date, t),
+      records: recs,
+    }));
 }
 
 export default function HistoryScreen() {
@@ -42,8 +53,12 @@ export default function HistoryScreen() {
   const colors = useThemeColors();
   const userId = useAuthStore((s) => s.userId);
 
-  const { records, isLoading } = useHistoryStore();
-  const { activeSession, checkIn, checkOut } = useSessionStore();
+  const records = useHistoryStore((s) => s.records);
+  const isLoading = useHistoryStore((s) => s.isLoading);
+  const activeSession = useSessionStore((s) => s.activeSession);
+  const isMutating = useSessionStore((s) => s.isMutating);
+  const checkIn = useSessionStore((s) => s.checkIn);
+  const checkOut = useSessionStore((s) => s.checkOut);
 
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
 
@@ -91,7 +106,7 @@ export default function HistoryScreen() {
     return (
       <View style={styles.section}>
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>
-          {item.date}
+          {item.label}
         </Text>
         {item.records.map((record) => (
           <AttendanceItem key={record.id} record={record} />
@@ -114,7 +129,7 @@ export default function HistoryScreen() {
     <SafeScreen noPadding>
       <FlatList
         data={sections}
-        keyExtractor={(item) => item.date}
+        keyExtractor={(item) => item.key}
         renderItem={renderSection}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
@@ -144,13 +159,20 @@ export default function HistoryScreen() {
                     variant="danger"
                     size="sm"
                     onPress={handleCheckOut}
+                    loading={isMutating}
+                    disabled={isMutating}
                     haptic="medium"
                   />
                 </View>
               ) : (
                 <TouchableOpacity
-                  style={[styles.checkInButton, { backgroundColor: colors.primary }]}
+                  style={[
+                    styles.checkInButton,
+                    { backgroundColor: colors.primary },
+                    isMutating && styles.checkInButtonBusy,
+                  ]}
                   onPress={handleCheckIn}
+                  disabled={isMutating}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="log-in-outline" size={24} color="#FFFFFF" />
@@ -228,6 +250,9 @@ const styles = StyleSheet.create({
     padding: Spacing[4],
     borderRadius: BorderRadius.lg,
     margin: Spacing[3],
+  },
+  checkInButtonBusy: {
+    opacity: 0.6,
   },
   checkInText: {
     fontSize: Typography.fontSize.md,
