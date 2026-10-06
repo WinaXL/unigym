@@ -1,83 +1,102 @@
 // src/services/receiptParser.ts
 /**
- * Receipt field extraction.
+ * Receipt field extraction backed by on-device OCR (expo-ocr-kit: ML Kit on
+ * Android, Vision on iOS).
  *
- * There is no OCR here yet. The previous version of this file claimed to do
- * text recognition but ignored the image entirely and returned a fabricated
- * receipt with an always-valid payment date and a random reference ID, which
- * meant a photograph of anything at all granted a membership.
- *
- * Until on-device OCR lands, extraction is explicitly a *simulation* and it is
- * confined to development builds. A release build throws OcrUnavailableError so
- * the scan path cannot silently manufacture a valid receipt.
+ * Nothing here is simulated. When text cannot be recognised, or the receipt's
+ * reference cannot be found, this throws: the reference is the key that stops
+ * a receipt being redeemed twice, so a scan without one must not proceed.
  */
+import { requireOptionalNativeModule } from 'expo';
+import type { OcrResult } from 'expo-ocr-kit';
+
 import type { ReceiptData } from '../types/api';
+import { extractReceiptFields, type ReceiptHints } from './receiptTextParser';
 
-/** Flip to true once a real text recogniser backs `parseReceiptImage`. */
-export const OCR_AVAILABLE = false;
+export type { ReceiptHints } from './receiptTextParser';
 
-export class OcrUnavailableError extends Error {
-  constructor() {
-    super('Receipt text recognition is not available in this build');
-    this.name = 'OcrUnavailableError';
+export type ReceiptScanErrorCode =
+  /** The native recogniser is not in this binary (Expo Go, web). */
+  | 'OCR_UNAVAILABLE'
+  /** The image could not be decoded or recognition failed or timed out. */
+  | 'UNREADABLE_IMAGE'
+  /** Recognition ran but found no text. */
+  | 'NO_TEXT'
+  /** Text was found but no receipt reference could be identified in it. */
+  | 'NO_REFERENCE';
+
+export class ReceiptScanError extends Error {
+  constructor(readonly code: ReceiptScanErrorCode, options?: { cause?: unknown }) {
+    super(`Receipt scan failed: ${code}`, options);
+    this.name = 'ReceiptScanError';
   }
 }
 
-export interface ParsedReceipt extends ReceiptData {
-  /** True when the fields were simulated rather than read from the image. */
-  simulated: boolean;
-}
-
-/** Identity used to seed a simulated receipt so renewals can be exercised. */
-export interface SimulationSeed {
-  fullName?: string;
-  studentNumber?: string;
-}
-
-/** FNV-1a, so the same image yields the same reference every time. */
-function stableHash(input: string): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash >>> 0;
-}
-
-function isoDate(date: Date): string {
-  return date.toISOString().split('T')[0];
+interface OcrNativeModule {
+  recognizeText(uri: string): Promise<OcrResult>;
 }
 
 /**
- * Extract receipt fields from a captured image.
+ * Looked up directly rather than through the package entry point, which also
+ * registers an unrelated native view. Null when the binary lacks the module.
+ */
+const ocrModule = requireOptionalNativeModule<OcrNativeModule>('ExpoOcrKit');
+
+export const OCR_AVAILABLE = ocrModule !== null;
+
+/** Recognition normally takes well under a second; a stall must not hang the UI. */
+const OCR_TIMEOUT_MS = 20_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('OCR timed out')), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
+/**
+ * Read receipt fields from a local image (file:// or content:// URI).
  *
- * The reference ID is derived from the image URI rather than randomised, so
- * re-submitting the same image reproduces the same reference and the
- * spent-receipt ledger actually rejects it — the old random ID made duplicate
- * detection impossible to trigger, and therefore impossible to trust.
+ * Name, student number and date may come back undefined when they cannot be
+ * read with confidence; the student fills those in and the adapter validates
+ * them. The reference is always present on success.
  *
- * @throws OcrUnavailableError in release builds.
+ * @param hints Identity already bound to this device. Used only to recognise
+ *   those values in the text — never to fill a field the image does not show.
+ * @throws ReceiptScanError
  */
 export async function parseReceiptImage(
   imageUri: string,
-  seed: SimulationSeed = {}
-): Promise<ParsedReceipt> {
-  if (!OCR_AVAILABLE && !__DEV__) {
-    throw new OcrUnavailableError();
+  hints: ReceiptHints = {}
+): Promise<ReceiptData> {
+  if (!ocrModule) throw new ReceiptScanError('OCR_UNAVAILABLE');
+
+  let result: OcrResult;
+  try {
+    result = await withTimeout(ocrModule.recognizeText(imageUri), OCR_TIMEOUT_MS);
+  } catch (error) {
+    throw new ReceiptScanError('UNREADABLE_IMAGE', { cause: error });
   }
 
-  await new Promise<void>((resolve) => setTimeout(resolve, 900));
+  if (!result || typeof result.text !== 'string' || !result.text.trim()) {
+    throw new ReceiptScanError('NO_TEXT');
+  }
 
-  const reference = `RCP-${(stableHash(imageUri) % 900000) + 100000}`;
-  const paidOn = new Date();
-  paidOn.setDate(paidOn.getDate() - 1);
+  const fields = extractReceiptFields(
+    { text: result.text, blocks: Array.isArray(result.blocks) ? result.blocks : [] },
+    hints
+  );
 
-  return {
-    studentName: seed.fullName?.trim() || '',
-    studentNumber: seed.studentNumber?.trim() || '',
-    paymentDate: isoDate(paidOn),
-    referenceId: reference,
-    planType: 'Monthly Gym Unlimited',
-    simulated: true,
-  };
+  if (!fields.referenceId) throw new ReceiptScanError('NO_REFERENCE');
+
+  return fields;
 }

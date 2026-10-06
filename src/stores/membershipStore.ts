@@ -11,8 +11,8 @@
  */
 import { create } from 'zustand';
 import type { Membership } from '../types/membership';
-import { readJson, writeJson, removeKey } from '../services/persistence';
-import { isMembership } from '../services/schemas';
+import { readJsonWith, writeJson, removeKey } from '../services/persistence';
+import { parseMembership } from '../services/schemas';
 import { STORAGE_KEYS } from '../core/constants';
 
 interface MembershipState {
@@ -33,7 +33,7 @@ export const useMembershipStore = create<MembershipState>((set) => ({
   isHydrated: false,
 
   loadMembership: async () => {
-    const outcome = await readJson(STORAGE_KEYS.MEMBERSHIP, isMembership);
+    const outcome = await readJsonWith(STORAGE_KEYS.MEMBERSHIP, parseMembership);
 
     // A corrupt cache is discarded rather than trusted. Nothing is lost: the
     // server record is the real one, and the next adapter call restores this.

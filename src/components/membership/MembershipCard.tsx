@@ -36,11 +36,11 @@ export function MembershipCard({ membership, studentName, studentId }: Membershi
       end={{ x: 1, y: 1 }}
       style={styles.card}
     >
-      {/* Header row */}
+      {/* Member & status */}
       <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.planLabel}>{t('dashboard.plan')}</Text>
-          <Text style={styles.planName}>{membership.plan}</Text>
+        <View style={styles.identity}>
+          <Text style={styles.name} numberOfLines={2}>{studentName}</Text>
+          <Text style={styles.studentId}>{studentId}</Text>
         </View>
         <Badge
           label={t(`membership.status${membership.status.charAt(0).toUpperCase() + membership.status.slice(1)}` as any)}
@@ -48,30 +48,10 @@ export function MembershipCard({ membership, studentName, studentId }: Membershi
         />
       </View>
 
-      {/* Name & ID */}
-      <View style={styles.nameSection}>
-        <Text style={styles.name}>{studentName}</Text>
-        <Text style={styles.studentId}>{studentId}</Text>
-      </View>
-
-      {/* Bottom row */}
-      <View style={styles.bottomRow}>
-        <View>
-          <Text style={styles.metaLabel}>
-            {membership.quotaType === 'unlimited'
-              ? t('dashboard.plan')
-              : t('dashboard.visitsRemaining', { count: membership.quotaRemaining ?? 0 })}
-          </Text>
-          <Text style={styles.metaValue}>
-            {membership.quotaType === 'unlimited'
-              ? t('dashboard.unlimited')
-              : `${membership.quotaRemaining} / ${membership.quotaTotal}`}
-          </Text>
-        </View>
-        <View style={styles.expiryContainer}>
-          <Text style={styles.metaLabel}>{t('membership.expiresOn', { date: '' })}</Text>
-          <Text style={styles.metaValue}>{formatDate(membership.expiryDate)}</Text>
-        </View>
+      {/* Expiry */}
+      <View style={styles.expirySection}>
+        <Text style={styles.metaLabel}>{t('membership.expiresLabel')}</Text>
+        <Text style={styles.metaValue}>{formatDate(membership.expiryDate)}</Text>
       </View>
 
       {/* Days remaining bar */}
@@ -103,23 +83,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing[5],
+    gap: Spacing[3],
+    marginBottom: Spacing[6],
   },
-  planLabel: {
-    fontSize: Typography.fontSize.xs,
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: Typography.fontWeight.medium,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  planName: {
-    fontSize: Typography.fontSize.md,
-    color: '#FFFFFF',
-    fontWeight: Typography.fontWeight.bold,
-    marginTop: 2,
-  },
-  nameSection: {
-    marginBottom: Spacing[5],
+  identity: {
+    flex: 1,
   },
   name: {
     fontSize: Typography.fontSize.xl,
@@ -134,13 +102,8 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.medium,
     letterSpacing: 1,
   },
-  bottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  expirySection: {
     marginBottom: Spacing[4],
-  },
-  expiryContainer: {
-    alignItems: 'flex-end',
   },
   metaLabel: {
     fontSize: Typography.fontSize.xs,

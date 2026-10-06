@@ -12,7 +12,7 @@
 ## 📱 Features
 
 - **Zero-Login & First-Receipt Onboarding**: No passwords, usernames, or temporary credentials needed. Students bind their device and activate their gym membership instantly by scanning their tuition/payment receipt.
-- **Receipt OCR & Manual Confirmation Fallback**: Scans student name, student number (digits only, e.g. `23141035`), payment date, and reference ID. An editable verification modal allows students to correct any OCR typos from blurred ink or lighting.
+- **On-Device Receipt OCR & Manual Confirmation**: Reads student name, student number (digits only, e.g. `23141035`), payment date, and reference ID with on-device text recognition (`expo-ocr-kit`: ML Kit on Android, Vision on iOS). An editable verification modal lets students correct or fill in fields; the reference ID stays read-only. Requires a development build — OCR is not available in Expo Go or on web.
 - **Anti-Fraud & Ownership Verification**: Receipts are validated through `IApiAdapter.validateReceipt`, which keeps a spent-receipt ledger to block reuse and checks student identity on renewals (rejecting slips belonging to other students).
 - **Gym Staff High-Contrast Verification Card**: Flashes a vibrant full-width emerald green **"ENTRY VERIFIED"** banner with live timestamp and student info so desk staff can confirm entry from a distance.
 - **100% Offline Persistence**: Stores (`authStore`, `membershipStore`, `sessionStore`, `historyStore`) persist to local storage seamlessly (`AsyncStorage` on native, `localStorage` on web), working entirely offline.
@@ -75,11 +75,11 @@ npm run ios
 
 ## 🔑 Demo Credentials (Mock Mode)
 
-| Student Number | Full Name | Plan | Password / Passport |
-|---|---|---|---|
-| `23141035` | Ayana Bekova | Monthly Unlimited | Any 5+ chars (e.g. `12345`) |
-| `22130920` | Dmitri Volkov | 10-Visit Pack (6 remaining) | Any 5+ chars (e.g. `12345`) |
-| `24150712` | Elif Şahin | Semester Pass | Any 5+ chars (e.g. `12345`) |
+| Student Number | Full Name | Password / Passport |
+|---|---|---|
+| `23141035` | Ayana Bekova | Any 5+ chars (e.g. `12345`) |
+| `22130920` | Dmitri Volkov | Any 5+ chars (e.g. `12345`) |
+| `24150712` | Elif Şahin | Any 5+ chars (e.g. `12345`) |
 
 ---
 

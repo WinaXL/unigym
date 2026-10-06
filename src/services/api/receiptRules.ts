@@ -11,30 +11,42 @@
  */
 import { isCalendarDate } from '../schemas';
 import { isStudentNumber } from '../../utils/studentNumber';
-
-/** Unicode dash variants that OCR and copy-paste routinely substitute for '-'. */
-const DASH_VARIANTS = /[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g;
+import { canonicalReferenceId } from '../../utils/referenceId';
 
 /**
  * Canonical form of a receipt reference. Returns null when the value could
  * never be a real reference, so a malformed ID is refused outright rather than
  * being stored as a novel ledger entry that a variant spelling could dodge.
- *
- * Whitespace is stripped entirely and dash variants are folded, so
- * "rcp 123-456", "RCP–123456" and "RCP-123456" all collapse to one entry.
  */
 export function normalizeReferenceId(raw: string | undefined | null): string | null {
-  if (typeof raw !== 'string') return null;
+  return canonicalReferenceId(raw);
+}
 
-  const canonical = raw
-    .normalize('NFKC')
-    .replace(DASH_VARIANTS, '-')
-    .replace(/\s+/g, '')
-    .toUpperCase();
+/** Characters OCR commonly reads interchangeably, folded to one representative. */
+const OCR_CONFUSABLES: Record<string, string> = {
+  O: '0',
+  Q: '0',
+  I: '1',
+  L: '1',
+  S: '5',
+  B: '8',
+  Z: '2',
+};
 
-  // Must start alphanumeric, then alphanumerics/dashes, 4..32 chars total.
-  if (!/^[A-Z0-9][A-Z0-9-]{3,31}$/.test(canonical)) return null;
-  return canonical;
+/**
+ * Key used to decide whether a reference has already been redeemed.
+ *
+ * The reference is read by OCR, so two photos of one receipt can spell it
+ * differently ("RCP-482913" / "RCP482913", "O" / "0"). Comparing canonical
+ * strings would treat each misreading as a fresh receipt. Dropping dashes and
+ * folding confusable characters makes those variants collide; the cost is that
+ * two genuinely distinct references differing only in such characters are
+ * also treated as one, which errs toward refusing rather than allowing reuse.
+ */
+export function referenceReplayKey(canonical: string): string {
+  return canonical
+    .replace(/-/g, '')
+    .replace(/[OQILSBZ]/g, (char) => OCR_CONFUSABLES[char]);
 }
 
 /**

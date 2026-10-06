@@ -23,7 +23,7 @@ import type {
   ReceiptValidationResult,
 } from '../../types/api';
 import { readJson, writeJson } from '../persistence';
-import { isMembership } from '../schemas';
+import { isMembership, parseMembership } from '../schemas';
 import {
   SERVER_STATE_KEYS,
   MAX_RECEIPT_AGE_DAYS,
@@ -32,6 +32,7 @@ import {
 } from '../../core/constants';
 import {
   normalizeReferenceId,
+  referenceReplayKey,
   normalizePersonName,
   normalizeStudentNumber,
   parseCalendarDateUtc,
@@ -110,9 +111,9 @@ async function loadLedger(): Promise<LedgerEntry[]> {
 }
 
 /**
- * Records written by earlier builds are keyed "user-STD…". They are re-keyed in
- * memory on read; the next redemption writes the whole map back, which persists
- * the new keys.
+ * Records written by earlier builds are keyed "user-STD…" and carry plan /
+ * quota fields. They are re-keyed and trimmed in memory on read; the next
+ * redemption writes the whole map back, which persists the cleaned form.
  */
 async function loadMemberships(): Promise<MembershipsByUser> {
   const outcome = await readJson(
@@ -123,7 +124,9 @@ async function loadMemberships(): Promise<MembershipsByUser> {
   if (outcome.status === 'empty') return {};
 
   const migrated: MembershipsByUser = {};
-  for (const [key, record] of Object.entries(outcome.value)) {
+  for (const [key, stored] of Object.entries(outcome.value)) {
+    const record = parseMembership(stored);
+    if (!record) throw new LedgerUnavailableError();
     const userId = migrateLegacyUserId(key);
     migrated[userId] = {
       ...record,
@@ -225,7 +228,8 @@ export const mockServerState = {
       //    damaged ledger refuses the redemption instead of permitting every
       //    receipt ever used.
       const ledger = await loadLedger();
-      if (ledger.some((entry) => entry.ref === ref)) {
+      const replayKey = referenceReplayKey(ref);
+      if (ledger.some((entry) => referenceReplayKey(entry.ref) === replayKey)) {
         return reject(receipt, 'ALREADY_USED');
       }
 
@@ -245,11 +249,9 @@ export const mockServerState = {
         id: existing?.id ?? `mem-${userId}`,
         userId,
         status: 'active',
-        plan: existing?.plan ?? 'Monthly Unlimited',
         startDate: existing?.startDate ?? paidDate.toISOString(),
         expiryDate: expiry.toISOString(),
         daysRemaining: daysBetween(nowMs, expiry.getTime()),
-        quotaType: 'unlimited',
       };
 
       // 7. Commit. The ledger is written first: if the second write fails the

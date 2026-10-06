@@ -20,6 +20,7 @@
     "android": {
       "package": "com.unigym.app",
       "allowBackup": false,
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"],
       "adaptiveIcon": {
         "backgroundColor": "#2563EB",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -68,7 +69,13 @@
           "backgroundColor": "#2563EB"
         }
       ],
-      "expo-local-authentication"
+      "expo-local-authentication",
+      [
+        "expo-ocr-kit",
+        {
+          "cameraPermission": "UniGym uses the camera to scan your gym payment receipt."
+        }
+      ]
     ]
   }
 }

@@ -55,12 +55,8 @@
     "daysRemaining": "{{count}} күн қалды",
     "daysRemaining_other": "{{count}} күн қалды",
     "expired": "Мерзімі өтті",
-    "visitsRemaining": "{{count}} келу қалды",
-    "visitsRemaining_other": "{{count}} келу қалды",
-    "unlimited": "Шексіз",
     "totalVisits": "Барлық келулер",
     "scanReceipt": "Төлем чегін сканерлеу",
-    "plan": "Тариф",
     "noMembership": "Белсенді мүшелік жоқ",
     "noMembershipHint": "Белсендіру үшін төлем чегін сканерлеңіз"
   },
@@ -81,9 +77,8 @@
     "successTitle": "Чек расталды!",
     "successMessage": "Мүшелік {{date}} дейін ұзартылды",
     "confirmationTitle": "Чек деректерін тексеріңіз",
-    "confirmationSubtitle": "Қате танылған өрістерді тексеріп, түзетіңіз",
+    "confirmationSubtitle": "Чектен оқылған деректерді тексеріп, жетіспейтіндерін толтырыңыз",
     "confirmAndActivate": "Растау және белсендіру",
-    "simulatedNotice": "Әзірлеу нұсқасы: бұл өрістер суреттен оқылмаған, жасанды түрде толтырылған.",
     "referenceIdLocked": "Тек оқуға арналған — дәл осы чекті екі рет пайдалануға жол бермейді.",
     "studentNamePlaceholder": "Чекте басылғандай",
     "studentNumberPlaceholder": "мыс. 23141035",
@@ -101,7 +96,7 @@
     "errorLedgerUnavailable": "Тексеру уақытша қолжетімсіз, сондықтан чек белсендірілмеді. Қайталап көріңіз.",
     "errorNotReady": "Профиль әлі жүктелуде — сәлден кейін қайталап көріңіз.",
     "errorInProgress": "Чек қазір тексерілуде.",
-    "errorOcrUnavailable": "Бұл нұсқада чекті сканерлеу қолжетімсіз.",
+    "errorOcrUnavailable": "Чекті сканерлеу үшін UniGym қосымшасының жинағы қажет. Expo Go мен браузерде қолжетімсіз.",
     "errorCameraUnavailable": "Камера суретке түсіре алмады. Қайталап көріңіз немесе галереядан жүктеңіз.",
     "errorCameraUnsupported": "Браузерде чекті сканерлеуге қолдау көрсетілмейді.",
     "errorGalleryUnavailable": "Фото галереясын ашу мүмкін болмады. Қайталап көріңіз.",
@@ -112,7 +107,9 @@
     "paymentDate": "Төлем күні (ЖЖЖЖ-АА-КК)",
     "referenceId": "Анықтамалық нөмір",
     "verifyReceipt": "Растау және белсендіру",
-    "retake": "Қайта түсіру / қайта жүктеу"
+    "retake": "Қайта түсіру / қайта жүктеу",
+    "errorOcrUnreadable": "Бұл суретті оқу мүмкін болмады. Анығырақ, жақсы жарықтандырылған фотомен қайталап көріңіз.",
+    "errorOcrNoText": "Суреттен мәтін табылмады. Чек толығымен кадрда және анық екеніне көз жеткізіңіз."
   },
   "security": {
     "lockedTitle": "UniGym құлыпталған",
@@ -173,7 +170,7 @@
     "statusExpired": "Мерзімі өтті",
     "statusSuspended": "Тоқтатылған",
     "statusPending": "Күтуде",
-    "expiresOn": "Аяқталу күні: {{date}}",
-    "validFrom": "{{date}} бастап жарамды"
+    "validFrom": "{{date}} бастап жарамды",
+    "expiresLabel": "Аяқталу күні"
   }
 }

@@ -55,12 +55,8 @@
     "daysRemaining": "{{count}} gün kaldı",
     "daysRemaining_other": "{{count}} gün kaldı",
     "expired": "Süresi Doldu",
-    "visitsRemaining": "{{count}} ziyaret kaldı",
-    "visitsRemaining_other": "{{count}} ziyaret kaldı",
-    "unlimited": "Sınırsız",
     "totalVisits": "Toplam Ziyaret",
     "scanReceipt": "Ödeme Makbuzunu Tara",
-    "plan": "Plan",
     "noMembership": "Aktif üyelik yok",
     "noMembershipHint": "Aktivasyon için ödeme makbuzunu tarayın"
   },
@@ -81,9 +77,8 @@
     "successTitle": "Makbuz Doğrulandı!",
     "successMessage": "Üyelik {{date}} tarihine kadar uzatıldı",
     "confirmationTitle": "Makbuz Bilgilerini Doğrulayın",
-    "confirmationSubtitle": "Yazıların hatalı okunması durumunda alanları düzenleyebilirsiniz",
+    "confirmationSubtitle": "Makbuzdan okunan bilgileri kontrol edin ve eksik olanları doldurun",
     "confirmAndActivate": "Doğrula ve Aktive Et",
-    "simulatedNotice": "Geliştirme derlemesi: bu alanlar görüntüden okunmadı, simüle edildi.",
     "referenceIdLocked": "Salt okunur — bir makbuzun iki kez kullanılmasını bu engeller.",
     "studentNamePlaceholder": "Makbuzda yazdığı gibi",
     "studentNumberPlaceholder": "örn. 23141035",
@@ -101,7 +96,7 @@
     "errorLedgerUnavailable": "Doğrulama geçici olarak kullanılamıyor, bu makbuz etkinleştirilmedi. Lütfen tekrar deneyin.",
     "errorNotReady": "Profiliniz hâlâ yükleniyor — lütfen birazdan tekrar deneyin.",
     "errorInProgress": "Bir makbuz hâlihazırda doğrulanıyor.",
-    "errorOcrUnavailable": "Bu derlemede makbuz tarama kullanılamıyor.",
+    "errorOcrUnavailable": "Makbuz tarama için UniGym uygulama derlemesi gerekir. Expo Go ve tarayıcıda kullanılamaz.",
     "errorCameraUnavailable": "Kamera fotoğraf çekemedi. Tekrar deneyin veya galeriden yükleyin.",
     "errorCameraUnsupported": "Makbuz tarama tarayıcıda desteklenmiyor.",
     "errorGalleryUnavailable": "Galeri açılamadı. Lütfen tekrar deneyin.",
@@ -112,7 +107,9 @@
     "paymentDate": "Ödeme Tarihi (YYYY-AA-GG)",
     "referenceId": "Referans No",
     "verifyReceipt": "Doğrula ve Aktive Et",
-    "retake": "Yeniden Çek / Yükle"
+    "retake": "Yeniden Çek / Yükle",
+    "errorOcrUnreadable": "Bu görüntü okunamadı. Daha net ve iyi aydınlatılmış bir fotoğrafla tekrar deneyin.",
+    "errorOcrNoText": "Bu görüntüde metin bulunamadı. Makbuzun tamamının kadrajda ve net olduğundan emin olun."
   },
   "security": {
     "lockedTitle": "UniGym kilitli",
@@ -173,7 +170,7 @@
     "statusExpired": "Süresi Doldu",
     "statusSuspended": "Askıya Alındı",
     "statusPending": "Beklemede",
-    "expiresOn": "{{date}} tarihinde sona erer",
-    "validFrom": "{{date}} tarihinden itibaren geçerli"
+    "validFrom": "{{date}} tarihinden itibaren geçerli",
+    "expiresLabel": "Bitiş tarihi"
   }
 }

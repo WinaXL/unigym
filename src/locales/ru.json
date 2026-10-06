@@ -56,13 +56,8 @@
     "daysRemaining_few": "Осталось {{count}} дня",
     "daysRemaining_other": "Осталось {{count}} дней",
     "expired": "Истёк",
-    "visitsRemaining": "Осталось {{count}} посещение",
-    "visitsRemaining_few": "Осталось {{count}} посещения",
-    "visitsRemaining_other": "Осталось {{count}} посещений",
-    "unlimited": "Безлимитный",
     "totalVisits": "Всего посещений",
     "scanReceipt": "Сканировать чек оплаты",
-    "plan": "Тариф",
     "noMembership": "Нет активного членства",
     "noMembershipHint": "Отсканируйте чек оплаты для активации"
   },
@@ -83,9 +78,8 @@
     "successTitle": "Чек подтверждён!",
     "successMessage": "Членство продлено до {{date}}",
     "confirmationTitle": "Проверьте данные чека",
-    "confirmationSubtitle": "Вы можете изменить любые поля, если текст распознался с ошибкой",
+    "confirmationSubtitle": "Проверьте данные, распознанные с чека, и заполните недостающие",
     "confirmAndActivate": "Подтвердить и активировать",
-    "simulatedNotice": "Отладочная сборка: эти поля смоделированы, а не распознаны с изображения.",
     "referenceIdLocked": "Только для чтения — именно это не даёт использовать чек дважды.",
     "studentNamePlaceholder": "Как напечатано на чеке",
     "studentNumberPlaceholder": "например 23141035",
@@ -103,7 +97,7 @@
     "errorLedgerUnavailable": "Проверка временно недоступна, поэтому чек не активирован. Попробуйте снова.",
     "errorNotReady": "Профиль ещё загружается — попробуйте через мгновение.",
     "errorInProgress": "Чек уже проверяется.",
-    "errorOcrUnavailable": "Сканирование чеков недоступно в этой сборке.",
+    "errorOcrUnavailable": "Для сканирования чеков нужна сборка приложения UniGym. В Expo Go и браузере оно недоступно.",
     "errorCameraUnavailable": "Камера не смогла сделать снимок. Попробуйте снова или загрузите фото из галереи.",
     "errorCameraUnsupported": "Сканирование чеков не поддерживается в браузере.",
     "errorGalleryUnavailable": "Не удалось открыть галерею. Попробуйте снова.",
@@ -114,7 +108,9 @@
     "paymentDate": "Дата оплаты (ГГГГ-ММ-ДД)",
     "referenceId": "Номер квитанции",
     "verifyReceipt": "Подтвердить и активировать",
-    "retake": "Переснять / перезагрузить"
+    "retake": "Переснять / перезагрузить",
+    "errorOcrUnreadable": "Не удалось прочитать изображение. Попробуйте более чёткое фото при хорошем освещении.",
+    "errorOcrNoText": "На изображении не найден текст. Убедитесь, что чек целиком в кадре и в фокусе."
   },
   "security": {
     "lockedTitle": "UniGym заблокирован",
@@ -175,7 +171,7 @@
     "statusExpired": "Истёк",
     "statusSuspended": "Приостановлен",
     "statusPending": "Ожидание",
-    "expiresOn": "Истекает {{date}}",
-    "validFrom": "Действует с {{date}}"
+    "validFrom": "Действует с {{date}}",
+    "expiresLabel": "Истекает"
   }
 }

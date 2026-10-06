@@ -6,7 +6,6 @@ export interface ReceiptData {
   studentNumber?: string; // digits only, e.g. "23141035"
   paymentDate?: string;   // YYYY-MM-DD
   referenceId?: string;
-  planType?: string;
 }
 
 /**

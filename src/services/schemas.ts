@@ -7,7 +7,7 @@
  * otherwise mint a membership that never expires. Every read goes through a
  * guard here and anything that fails is treated as absent.
  */
-import type { Membership, MembershipStatus, QuotaType } from '../types/membership';
+import type { Membership, MembershipStatus } from '../types/membership';
 import type { UserProfile } from '../types/auth';
 import type { AttendanceRecord } from '../types/attendance';
 import {
@@ -22,8 +22,6 @@ const MEMBERSHIP_STATUSES: readonly MembershipStatus[] = [
   'suspended',
   'pending',
 ];
-const QUOTA_TYPES: readonly QuotaType[] = ['unlimited', 'punch_card'];
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -67,16 +65,26 @@ export function isMembership(value: unknown): value is Membership {
     isNonEmptyString(value.userId) &&
     typeof value.status === 'string' &&
     MEMBERSHIP_STATUSES.includes(value.status as MembershipStatus) &&
-    isNonEmptyString(value.plan) &&
     isIsoTimestamp(value.startDate) &&
     isIsoTimestamp(value.expiryDate) &&
-    isFiniteNumber(value.daysRemaining) &&
-    typeof value.quotaType === 'string' &&
-    QUOTA_TYPES.includes(value.quotaType as QuotaType) &&
-    isOptional(value.quotaTotal, isFiniteNumber) &&
-    isOptional(value.quotaUsed, isFiniteNumber) &&
-    isOptional(value.quotaRemaining, isFiniteNumber)
+    isFiniteNumber(value.daysRemaining)
   );
+}
+
+/**
+ * Validate a stored membership and keep only the current fields, dropping the
+ * plan / quota fields that earlier builds wrote alongside them.
+ */
+export function parseMembership(value: unknown): Membership | null {
+  if (!isMembership(value)) return null;
+  return {
+    id: value.id,
+    userId: value.userId,
+    status: value.status,
+    startDate: value.startDate,
+    expiryDate: value.expiryDate,
+    daysRemaining: value.daysRemaining,
+  };
 }
 
 export function isUserProfile(value: unknown): value is UserProfile {

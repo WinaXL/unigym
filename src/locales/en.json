@@ -55,12 +55,8 @@
     "daysRemaining": "{{count}} day remaining",
     "daysRemaining_other": "{{count}} days remaining",
     "expired": "Expired",
-    "visitsRemaining": "{{count}} visit remaining",
-    "visitsRemaining_other": "{{count}} visits remaining",
-    "unlimited": "Unlimited",
     "totalVisits": "Total Visits",
     "scanReceipt": "Scan Payment Receipt",
-    "plan": "Plan",
     "noMembership": "No active membership",
     "noMembershipHint": "Scan a payment receipt to activate"
   },
@@ -81,9 +77,8 @@
     "successTitle": "Receipt Verified!",
     "successMessage": "Membership extended until {{date}}",
     "confirmationTitle": "Verify Receipt Details",
-    "confirmationSubtitle": "Please review or edit any fields that may have scanned incorrectly",
+    "confirmationSubtitle": "Check the details read from your receipt and fill in anything that is missing",
     "confirmAndActivate": "Confirm & Activate",
-    "simulatedNotice": "Development build: these fields are simulated, not read from the image.",
     "referenceIdLocked": "Read-only — this is what prevents a receipt being used twice.",
     "studentNamePlaceholder": "As printed on the receipt",
     "studentNumberPlaceholder": "e.g. 23141035",
@@ -101,7 +96,7 @@
     "errorLedgerUnavailable": "Verification is temporarily unavailable, so this receipt was not activated. Please try again.",
     "errorNotReady": "Still loading your profile — please try again in a moment.",
     "errorInProgress": "A receipt is already being verified.",
-    "errorOcrUnavailable": "Receipt scanning is not available in this build.",
+    "errorOcrUnavailable": "Receipt scanning needs the UniGym app build. It is not available in Expo Go or the browser.",
     "errorCameraUnavailable": "The camera could not take a photo. Please try again or upload from your gallery.",
     "errorCameraUnsupported": "Receipt scanning is not supported in the browser.",
     "errorGalleryUnavailable": "Could not open your photo library. Please try again.",
@@ -112,7 +107,9 @@
     "paymentDate": "Payment Date (YYYY-MM-DD)",
     "referenceId": "Reference ID",
     "verifyReceipt": "Verify & Activate",
-    "retake": "Retake / Re-upload"
+    "retake": "Retake / Re-upload",
+    "errorOcrUnreadable": "This image could not be read. Try again with a sharper, well-lit photo.",
+    "errorOcrNoText": "No text was found in this image. Make sure the whole receipt is in frame and in focus."
   },
   "security": {
     "lockedTitle": "UniGym is locked",
@@ -173,7 +170,7 @@
     "statusExpired": "Expired",
     "statusSuspended": "Suspended",
     "statusPending": "Pending",
-    "expiresOn": "Expires {{date}}",
-    "validFrom": "Valid from {{date}}"
+    "validFrom": "Valid from {{date}}",
+    "expiresLabel": "Expires"
   }
 }

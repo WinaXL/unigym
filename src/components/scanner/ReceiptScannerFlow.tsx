@@ -25,7 +25,11 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 import { useAuthStore } from '../../stores/authStore';
 import { useApiAdapter } from '../../services/ApiProvider';
 import { membershipService } from '../../services/membershipService';
-import { parseReceiptImage, OcrUnavailableError } from '../../services/receiptParser';
+import {
+  parseReceiptImage,
+  ReceiptScanError,
+  type ReceiptScanErrorCode,
+} from '../../services/receiptParser';
 import { hapticService } from '../../services/hapticService';
 import { Typography, Spacing, BorderRadius } from '../../theme';
 import { formatDate } from '../../utils/dateUtils';
@@ -62,6 +66,14 @@ const REJECTION_MESSAGE_KEYS: Record<ReceiptRejectionCode, string> = {
   GENERIC: 'scan.errorGeneric',
 };
 
+/** Maps a failed on-device scan onto a user-facing message. */
+const SCAN_ERROR_MESSAGE_KEYS: Record<ReceiptScanErrorCode, string> = {
+  OCR_UNAVAILABLE: 'scan.errorOcrUnavailable',
+  UNREADABLE_IMAGE: 'scan.errorOcrUnreadable',
+  NO_TEXT: 'scan.errorOcrNoText',
+  NO_REFERENCE: 'scan.errorInvalidReference',
+};
+
 export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
@@ -73,8 +85,6 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
   const [capturing, setCapturing] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
   const [expiryDate, setExpiryDate] = useState('');
-  const [wasSimulated, setWasSimulated] = useState(false);
-
   const [studentName, setStudentName] = useState('');
   const [studentNumber, setStudentNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
@@ -114,29 +124,23 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
       setStudentNumber(digitsOnly(parsed.studentNumber ?? ''));
       setPaymentDate(parsed.paymentDate ?? '');
       setReferenceId(parsed.referenceId ?? '');
-      setWasSimulated(parsed.simulated);
       setStep('verify_modal');
     } catch (error) {
       if (!mountedRef.current) return;
       setStep('idle');
       failWith(
-        error instanceof OcrUnavailableError
-          ? 'scan.errorOcrUnavailable'
+        error instanceof ReceiptScanError
+          ? SCAN_ERROR_MESSAGE_KEYS[error.code]
           : 'scan.errorGeneric'
       );
     }
   }
 
   async function handleLaunchCamera() {
+    // There is no recogniser in the browser, and a placeholder image must never
+    // stand in for a real one.
     if (Platform.OS === 'web') {
-      // The browser target is a development preview only. Previously this
-      // branch fed a placeholder URI straight into the parser on every platform,
-      // so a membership could be activated with no image at all.
-      if (__DEV__) {
-        await processImageUri('simulated://web-preview');
-      } else {
-        failWith('scan.errorCameraUnsupported');
-      }
+      failWith('scan.errorCameraUnsupported');
       return;
     }
 
@@ -190,7 +194,8 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
     try {
       result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        quality: 0.8,
+        // Re-compression blurs small print; the recogniser downsamples itself.
+        quality: 1,
       });
     } catch {
       failWith('scan.errorGalleryUnavailable');
@@ -236,7 +241,6 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
         studentNumber: studentNumber.trim(),
         paymentDate: paymentDate.trim(),
         referenceId: referenceId.trim(),
-        planType: 'Monthly Gym Unlimited',
       };
 
       // The adapter decides. Identity binding and cache writes happen inside the
@@ -383,13 +387,6 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
                   {t('scan.confirmationSubtitle')}
                 </Text>
               </View>
-
-              {wasSimulated && (
-                <View style={[styles.simulatedBanner, { backgroundColor: colors.warning }]}>
-                  <Ionicons name="warning-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.simulatedBannerText}>{t('scan.simulatedNotice')}</Text>
-                </View>
-              )}
 
               <Card style={{ gap: Spacing[3], marginBottom: Spacing[4] }}>
                 {/* Student Full Name */}
@@ -668,21 +665,6 @@ const styles = StyleSheet.create({
   sheetSubtitle: {
     fontSize: Typography.fontSize.xs,
     textAlign: 'center',
-  },
-  simulatedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing[2],
-    paddingHorizontal: Spacing[3],
-    paddingVertical: Spacing[2],
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing[3],
-  },
-  simulatedBannerText: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
   },
   inputGroup: {
     gap: 4,
