@@ -23,9 +23,7 @@ export interface AuthResponse extends TokenPair {
 
 export interface UserProfile {
   id: string;
+  /** Purely numeric, e.g. "23141035". See utils/studentNumber. */
   studentId: string;
   fullName: string;
-  avatarUrl?: string;
-  faculty?: string;
-  enrollmentYear?: number;
 }

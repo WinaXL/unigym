@@ -23,13 +23,11 @@ import { useSessionStore } from '../../src/stores/sessionStore';
 import { useHistoryStore } from '../../src/stores/historyStore';
 import { useSecurityStore } from '../../src/stores/securityStore';
 import { useThemeStore } from '../../src/stores/themeStore';
-import { useLocaleStore } from '../../src/stores/localeStore';
+import { LanguageOptions } from '../../src/components/ui/LanguageOptions';
 import { hapticService } from '../../src/services/hapticService';
 import { storage } from '../../src/services/storage';
 import { Typography, Spacing, BorderRadius } from '../../src/theme';
-import { SUPPORTED_LANGUAGES, LANGUAGE_LABELS } from '../../src/core/i18n';
 import { STORAGE_KEYS, APP_VERSION } from '../../src/core/constants';
-import type { SupportedLanguage } from '../../src/core/i18n';
 import { Ionicons } from '@expo/vector-icons';
 
 type ThemeOption = 'light' | 'dark' | 'system';
@@ -41,9 +39,6 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const themePreference = useThemeStore((s) => s.preference);
   const setPreference = useThemeStore((s) => s.setPreference);
-  const language = useLocaleStore((s) => s.language);
-  const setLanguage = useLocaleStore((s) => s.setLanguage);
-
   const biometricEnabled = useSecurityStore((s) => s.biometricEnabled);
   const biometricAvailable = useSecurityStore((s) => s.biometricAvailable);
   const setBiometricEnabled = useSecurityStore((s) => s.setBiometricEnabled);
@@ -52,12 +47,6 @@ export default function ProfileScreen() {
     hapticService.light();
     setPreference(theme);
     await storage.setItem(STORAGE_KEYS.THEME, theme).catch(() => {});
-  }
-
-  async function handleLanguageChange(lang: SupportedLanguage) {
-    hapticService.light();
-    setLanguage(lang);
-    await storage.setItem(STORAGE_KEYS.LANGUAGE, lang).catch(() => {});
   }
 
   async function handleBiometricToggle(val: boolean) {
@@ -140,16 +129,6 @@ export default function ProfileScreen() {
                 label={t('profile.studentNumber')}
                 value={user?.studentId}
                 colors={colors}
-              />
-              <SettingRow
-                label={t('profile.faculty')}
-                value={user?.faculty}
-                colors={colors}
-              />
-              <SettingRow
-                label={t('profile.enrollmentYear')}
-                value={user?.enrollmentYear?.toString()}
-                colors={colors}
                 last
               />
             </Card>
@@ -203,32 +182,7 @@ export default function ProfileScreen() {
               <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>
                 {t('profile.language')}
               </Text>
-              <View style={styles.langOptions}>
-                {SUPPORTED_LANGUAGES.map((lang) => (
-                  <TouchableOpacity
-                    key={lang}
-                    style={[
-                      styles.langButton,
-                      {
-                        backgroundColor:
-                          language === lang ? colors.primary : colors.surfaceSubtle,
-                        borderColor:
-                          language === lang ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => handleLanguageChange(lang)}
-                  >
-                    <Text
-                      style={[
-                        styles.langLabel,
-                        { color: language === lang ? '#FFFFFF' : colors.textSecondary },
-                      ]}
-                    >
-                      {LANGUAGE_LABELS[lang]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <LanguageOptions />
             </Card>
           </View>
 
@@ -410,21 +364,6 @@ const styles = StyleSheet.create({
   },
   themeLabel: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  langOptions: {
-    flexDirection: 'row',
-    gap: Spacing[2],
-  },
-  langButton: {
-    flex: 1,
-    paddingVertical: Spacing[2.5],
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  langLabel: {
-    fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
   },
   logoutButton: {

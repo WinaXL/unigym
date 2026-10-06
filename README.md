@@ -12,11 +12,11 @@
 ## 📱 Features
 
 - **Zero-Login & First-Receipt Onboarding**: No passwords, usernames, or temporary credentials needed. Students bind their device and activate their gym membership instantly by scanning their tuition/payment receipt.
-- **Receipt OCR & Manual Confirmation Fallback**: Scans student name, student number (`STD...`), payment date, and reference ID. An editable verification modal allows students to correct any OCR typos from blurred ink or lighting.
-- **Anti-Fraud & Ownership Verification**: Prevents duplicate receipt reuse via tracked `usedReceiptIds` and validates student identity on renewals (rejecting slips belonging to other students).
+- **Receipt OCR & Manual Confirmation Fallback**: Scans student name, student number (digits only, e.g. `23141035`), payment date, and reference ID. An editable verification modal allows students to correct any OCR typos from blurred ink or lighting.
+- **Anti-Fraud & Ownership Verification**: Receipts are validated through `IApiAdapter.validateReceipt`, which keeps a spent-receipt ledger to block reuse and checks student identity on renewals (rejecting slips belonging to other students).
 - **Gym Staff High-Contrast Verification Card**: Flashes a vibrant full-width emerald green **"ENTRY VERIFIED"** banner with live timestamp and student info so desk staff can confirm entry from a distance.
 - **100% Offline Persistence**: Stores (`authStore`, `membershipStore`, `sessionStore`, `historyStore`) persist to local storage seamlessly (`AsyncStorage` on native, `localStorage` on web), working entirely offline.
-- **Internationalization (i18n)**: Instant runtime language switching across **English (`en`)**, **Russian (`ru`)**, and **Turkish (`tr`)** via `i18next`.
+- **Internationalization (i18n)**: Instant runtime language switching across **English (`en`)**, **Russian (`ru`)**, **Turkish (`tr`)**, and **Kazakh (`kk`)** via `i18next`, selectable from the Welcome screen and Profile.
 - **Theme Engine**: System-responsive dynamic **Dark & Light Mode** with semantic design tokens.
 - **Device Profile Reset**: Single-tap option in Profile to wipe device state and allow a clean re-onboarding.
 
@@ -77,9 +77,9 @@ npm run ios
 
 | Student Number | Full Name | Plan | Password / Passport |
 |---|---|---|---|
-| `STD23141035` | Ayana Bekova | Monthly Unlimited | Any 5+ chars (e.g. `12345`) |
-| `STD22130920` | Dmitri Volkov | 10-Visit Pack (6 remaining) | Any 5+ chars (e.g. `12345`) |
-| `STD24150712` | Elif Şahin | Semester Pass | Any 5+ chars (e.g. `12345`) |
+| `23141035` | Ayana Bekova | Monthly Unlimited | Any 5+ chars (e.g. `12345`) |
+| `22130920` | Dmitri Volkov | 10-Visit Pack (6 remaining) | Any 5+ chars (e.g. `12345`) |
+| `24150712` | Elif Şahin | Semester Pass | Any 5+ chars (e.g. `12345`) |
 
 ---
 
@@ -97,7 +97,7 @@ src/
 ├── hooks/            # Custom hooks (useAuth, useMembership, useQrToken, etc.)
 ├── components/       # UI design system and domain-specific cards
 ├── theme/            # Color palettes, typography scales, spacing tokens
-├── locales/          # English (en), Russian (ru), Turkish (tr) translation dictionaries
+├── locales/          # English (en), Russian (ru), Turkish (tr), Kazakh (kk) translation dictionaries
 └── types/            # Fully-typed domain models (Auth, Membership, Attendance, API)
 ```
 

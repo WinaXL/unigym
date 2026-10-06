@@ -77,7 +77,6 @@ export async function parseReceiptImage(
     studentNumber: seed.studentNumber?.trim() || '',
     paymentDate: isoDate(paidOn),
     referenceId: reference,
-    amount: '15,000 KZT',
     planType: 'Monthly Gym Unlimited',
     simulated: true,
   };

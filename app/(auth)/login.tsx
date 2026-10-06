@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../src/hooks/useThemeColors';
 import { Card } from '../../src/components/ui/Card';
 import { ReceiptScannerFlow } from '../../src/components/scanner/ReceiptScannerFlow';
+import { LanguageSwitcher } from '../../src/components/ui/LanguageSwitcher';
 import { hapticService } from '../../src/services/hapticService';
 import { Typography, Spacing, BorderRadius } from '../../src/theme';
 
@@ -42,6 +43,11 @@ export default function WelcomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Language can be chosen before onboarding starts */}
+        <View style={styles.topBar}>
+          <LanguageSwitcher />
+        </View>
+
         {/* Branding Hero */}
         <View style={styles.brandHero}>
           <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
@@ -164,9 +170,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing[6],
   },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: -Spacing[4],
+  },
   brandHero: {
     alignItems: 'center',
-    paddingTop: Spacing[4],
   },
   logoCircle: {
     width: 80,

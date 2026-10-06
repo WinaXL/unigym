@@ -3,10 +3,9 @@ import type { Membership } from './membership';
 
 export interface ReceiptData {
   studentName?: string;
-  studentNumber?: string;
+  studentNumber?: string; // digits only, e.g. "23141035"
   paymentDate?: string;   // YYYY-MM-DD
   referenceId?: string;
-  amount?: string;
   planType?: string;
 }
 
@@ -18,6 +17,7 @@ export type ReceiptRejectionCode =
   // Field-level problems with the receipt itself
   | 'NO_NAME'
   | 'NO_STUDENT_NUMBER'
+  | 'INVALID_STUDENT_NUMBER'
   | 'NO_DATE'
   | 'INVALID_DATE'
   | 'INVALID_REFERENCE'

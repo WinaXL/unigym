@@ -5,6 +5,7 @@ import { readJson, writeJson, removeKey } from '../services/persistence';
 import { isAttendanceRecordArray, isAttendanceRecord } from '../services/schemas';
 import { STORAGE_KEYS } from '../core/constants';
 import { localCalendarDate } from '../utils/dateUtils';
+import { migrateLegacyUserId } from '../utils/studentNumber';
 
 interface HistoryState {
   records: AttendanceRecord[];
@@ -76,7 +77,9 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
       // Scoped to the bound student. Without this filter, re-binding the device
       // to a different student number showed the previous student's visits.
       const records = dedupeById(
-        outcome.value.filter((record) => record.userId === userId)
+        outcome.value
+          .map((record) => ({ ...record, userId: migrateLegacyUserId(record.userId) }))
+          .filter((record) => record.userId === userId)
       );
       set({ records, isLoading: false });
       return;

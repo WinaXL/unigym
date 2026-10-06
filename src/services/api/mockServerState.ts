@@ -38,6 +38,7 @@ import {
   utcDayDiff,
   todayUtcMidnight,
 } from './receiptRules';
+import { migrateLegacyStudentNumber, migrateLegacyUserId } from '../../utils/studentNumber';
 
 interface LedgerEntry {
   ref: string;
@@ -101,16 +102,36 @@ function serialize<T>(operation: () => Promise<T>): Promise<T> {
 async function loadLedger(): Promise<LedgerEntry[]> {
   const outcome = await readJson(SERVER_STATE_KEYS.RECEIPT_LEDGER, isLedger);
   if (outcome.status === 'corrupt') throw new LedgerUnavailableError();
-  return outcome.status === 'ok' ? outcome.value : [];
+  if (outcome.status === 'empty') return [];
+  return outcome.value.map((entry) => ({
+    ...entry,
+    studentNumber: migrateLegacyStudentNumber(entry.studentNumber),
+  }));
 }
 
+/**
+ * Records written by earlier builds are keyed "user-STD…". They are re-keyed in
+ * memory on read; the next redemption writes the whole map back, which persists
+ * the new keys.
+ */
 async function loadMemberships(): Promise<MembershipsByUser> {
   const outcome = await readJson(
     SERVER_STATE_KEYS.MEMBERSHIP_RECORD,
     isMembershipsByUser
   );
   if (outcome.status === 'corrupt') throw new LedgerUnavailableError();
-  return outcome.status === 'ok' ? outcome.value : {};
+  if (outcome.status === 'empty') return {};
+
+  const migrated: MembershipsByUser = {};
+  for (const [key, record] of Object.entries(outcome.value)) {
+    const userId = migrateLegacyUserId(key);
+    migrated[userId] = {
+      ...record,
+      userId: migrateLegacyUserId(record.userId),
+      id: record.id.replace(/^mem-user-STD/i, 'mem-user-'),
+    };
+  }
+  return migrated;
 }
 
 // ── Derived values ───────────────────────────────────────────────────────────
@@ -168,8 +189,9 @@ export const mockServerState = {
       const receiptName = normalizePersonName(receipt.studentName);
       if (!receiptName) return reject(receipt, 'NO_NAME');
 
+      if (!receipt.studentNumber?.trim()) return reject(receipt, 'NO_STUDENT_NUMBER');
       const receiptStudentNumber = normalizeStudentNumber(receipt.studentNumber);
-      if (!receiptStudentNumber) return reject(receipt, 'NO_STUDENT_NUMBER');
+      if (!receiptStudentNumber) return reject(receipt, 'INVALID_STUDENT_NUMBER');
 
       // 3. Ownership. Both fields must match the bound identity — a receipt that
       //    matches only on name, or only on number, belongs to someone else.
@@ -177,7 +199,8 @@ export const mockServerState = {
         const boundNumber = normalizeStudentNumber(context.boundStudentNumber);
         const boundName = normalizePersonName(context.boundFullName);
 
-        if (receiptStudentNumber !== boundNumber) {
+        // An unreadable bound number can never match, which refuses the receipt.
+        if (boundNumber === null || receiptStudentNumber !== boundNumber) {
           return reject(receipt, 'ID_MISMATCH');
         }
         if (boundName && receiptName !== boundName) {

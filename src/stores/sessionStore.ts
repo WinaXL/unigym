@@ -5,6 +5,7 @@ import { readJson, writeJson, removeKey } from '../services/persistence';
 import { isAttendanceRecord } from '../services/schemas';
 import { STORAGE_KEYS } from '../core/constants';
 import { useHistoryStore } from './historyStore';
+import { migrateLegacyUserId } from '../utils/studentNumber';
 import { localCalendarDate } from '../utils/dateUtils';
 
 interface SessionState {
@@ -34,7 +35,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       await removeKey(STORAGE_KEYS.ACTIVE_SESSION).catch(() => {});
     }
     set({
-      activeSession: outcome.status === 'ok' ? outcome.value : null,
+      activeSession:
+        outcome.status === 'ok'
+          ? { ...outcome.value, userId: migrateLegacyUserId(outcome.value.userId) }
+          : null,
       isLoading: false,
     });
   },

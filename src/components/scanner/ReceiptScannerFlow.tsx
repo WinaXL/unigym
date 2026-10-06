@@ -29,6 +29,11 @@ import { parseReceiptImage, OcrUnavailableError } from '../../services/receiptPa
 import { hapticService } from '../../services/hapticService';
 import { Typography, Spacing, BorderRadius } from '../../theme';
 import { formatDate } from '../../utils/dateUtils';
+import {
+  digitsOnly,
+  isStudentNumber,
+  STUDENT_NUMBER_MAX_LENGTH,
+} from '../../utils/studentNumber';
 import type { ReceiptData, ReceiptRejectionCode } from '../../types/api';
 
 type Step = 'idle' | 'camera' | 'processing' | 'verify_modal';
@@ -42,6 +47,7 @@ interface ReceiptScannerFlowProps {
 const REJECTION_MESSAGE_KEYS: Record<ReceiptRejectionCode, string> = {
   NO_NAME: 'scan.errorNoName',
   NO_STUDENT_NUMBER: 'scan.errorNoStudentNumber',
+  INVALID_STUDENT_NUMBER: 'scan.errorInvalidStudentNumber',
   NO_DATE: 'scan.errorNoDate',
   INVALID_DATE: 'scan.errorInvalidDate',
   INVALID_REFERENCE: 'scan.errorInvalidReference',
@@ -73,7 +79,6 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
   const [studentNumber, setStudentNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [referenceId, setReferenceId] = useState('');
-  const [amount, setAmount] = useState('');
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -106,10 +111,9 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
       if (!mountedRef.current) return;
 
       setStudentName(parsed.studentName ?? '');
-      setStudentNumber(parsed.studentNumber ?? '');
+      setStudentNumber(digitsOnly(parsed.studentNumber ?? ''));
       setPaymentDate(parsed.paymentDate ?? '');
       setReferenceId(parsed.referenceId ?? '');
-      setAmount(parsed.amount ?? '');
       setWasSimulated(parsed.simulated);
       setStep('verify_modal');
     } catch (error) {
@@ -212,6 +216,10 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
       failWith('scan.errorNoStudentNumber');
       return;
     }
+    if (!isStudentNumber(studentNumber)) {
+      failWith('scan.errorInvalidStudentNumber');
+      return;
+    }
     if (!paymentDate.trim()) {
       failWith('scan.errorNoDate');
       return;
@@ -228,7 +236,6 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
         studentNumber: studentNumber.trim(),
         paymentDate: paymentDate.trim(),
         referenceId: referenceId.trim(),
-        amount: amount.trim(),
         planType: 'Monthly Gym Unlimited',
       };
 
@@ -407,10 +414,12 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
                   <TextInput
                     style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
                     value={studentNumber}
-                    onChangeText={setStudentNumber}
+                    onChangeText={(text) => setStudentNumber(digitsOnly(text))}
                     placeholder={t('scan.studentNumberPlaceholder')}
                     placeholderTextColor={colors.textTertiary}
-                    autoCapitalize="characters"
+                    keyboardType="number-pad"
+                    maxLength={STUDENT_NUMBER_MAX_LENGTH}
+                    autoCorrect={false}
                   />
                 </View>
 
@@ -452,19 +461,6 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
                   </Text>
                 </View>
 
-                {/* Amount */}
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                    {t('scan.amount')}
-                  </Text>
-                  <TextInput
-                    style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
-                    value={amount}
-                    onChangeText={setAmount}
-                    placeholder="15,000 KZT"
-                    placeholderTextColor={colors.textTertiary}
-                  />
-                </View>
               </Card>
 
               <Button

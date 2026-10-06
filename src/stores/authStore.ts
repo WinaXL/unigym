@@ -1,8 +1,8 @@
 // src/stores/authStore.ts
 import { create } from 'zustand';
 import type { UserProfile } from '../types/auth';
-import { readJson, writeJson, removeKey } from '../services/persistence';
-import { isUserProfile } from '../services/schemas';
+import { readJsonWith, writeJson, removeKey } from '../services/persistence';
+import { isUserProfile, parseStoredUserProfile } from '../services/schemas';
 import { STORAGE_KEYS } from '../core/constants';
 
 /** Raised when a bind would silently replace an already-bound identity. */
@@ -49,10 +49,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isAuthenticated: true, user, userId: user.id, isLoading: false, isHydrated: true }),
 
   loadProfile: async () => {
-    const outcome = await readJson(STORAGE_KEYS.USER_PROFILE, isUserProfile);
+    const outcome = await readJsonWith(STORAGE_KEYS.USER_PROFILE, parseStoredUserProfile);
 
     if (outcome.status === 'ok') {
-      const profile = outcome.value;
+      const { profile, migrated } = outcome.value;
+      if (migrated) {
+        // Best effort: if this write fails the migration simply reruns next launch.
+        await writeJson(STORAGE_KEYS.USER_PROFILE, profile).catch(() => {});
+      }
       set({
         isAuthenticated: true,
         user: profile,
@@ -80,6 +84,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   bindProfile: async (profile: UserProfile) => {
+    if (!isUserProfile(profile)) {
+      throw new Error('Refusing to bind a profile with an invalid student number');
+    }
+
     const existing = get().user;
     if (existing && existing.studentId !== profile.studentId) {
       throw new ProfileAlreadyBoundError();

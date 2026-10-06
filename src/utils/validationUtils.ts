@@ -1,7 +1,9 @@
 // src/utils/validationUtils.ts
+import { isStudentNumber } from './studentNumber';
+
 export function validateStudentId(id: string): string | null {
   if (!id.trim()) return 'auth.studentIdRequired';
-  if (id.trim().length < 3 || id.trim().length > 20) return 'auth.studentIdInvalid';
+  if (!isStudentNumber(id.trim())) return 'auth.studentIdInvalid';
   return null;
 }
 

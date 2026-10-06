@@ -5,7 +5,7 @@
  * Pre-loaded with 3 student profiles, realistic memberships, and visit history.
  * All "network" calls have a simulated 400–900ms latency for realistic UX testing.
  *
- * Student ID format: STD... (e.g. STD23141035)
+ * Student numbers are digits only (e.g. 23141035).
  */
 import type { IApiAdapter } from './IApiAdapter';
 import type { AuthChallenge, LoginCredentials, AuthResponse, TokenPair, UserProfile } from '../../types/auth';
@@ -22,29 +22,23 @@ import { mockServerState, LedgerUnavailableError } from './mockServerState';
 // ── Seeded Data ──────────────────────────────────────────────────────────────
 
 const MOCK_USERS: Record<string, UserProfile & { passportHash: string }> = {
-  'STD23141035': {
+  '23141035': {
     id: 'user-001',
-    studentId: 'STD23141035',
+    studentId: '23141035',
     passportHash: 'mock_hash_ayana',
     fullName: 'Ayana Bekova',
-    faculty: 'Computer Science',
-    enrollmentYear: 2023,
   },
-  'STD22130920': {
+  '22130920': {
     id: 'user-002',
-    studentId: 'STD22130920',
+    studentId: '22130920',
     passportHash: 'mock_hash_dmitri',
     fullName: 'Dmitri Volkov',
-    faculty: 'Engineering',
-    enrollmentYear: 2022,
   },
-  'STD24150712': {
+  '24150712': {
     id: 'user-003',
-    studentId: 'STD24150712',
+    studentId: '24150712',
     passportHash: 'mock_hash_elif',
     fullName: 'Elif Şahin',
-    faculty: 'Business Administration',
-    enrollmentYear: 2024,
   },
 };
 

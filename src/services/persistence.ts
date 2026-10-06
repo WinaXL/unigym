@@ -25,6 +25,17 @@ export async function readJson<T>(
   key: string,
   guard: (value: unknown) => value is T
 ): Promise<ReadOutcome<T>> {
+  return readJsonWith(key, (value) => (guard(value) ? value : null));
+}
+
+/**
+ * Like readJson, but with a parser that may transform the value (for example
+ * to upgrade data written by an older build). Returning null marks it corrupt.
+ */
+export async function readJsonWith<T>(
+  key: string,
+  parse: (value: unknown) => T | null
+): Promise<ReadOutcome<T>> {
   const raw = await areaFor(key).getItem(key);
   if (raw === null || raw === '') return { status: 'empty' };
 
@@ -35,7 +46,8 @@ export async function readJson<T>(
     return { status: 'corrupt' };
   }
 
-  return guard(parsed) ? { status: 'ok', value: parsed } : { status: 'corrupt' };
+  const value = parse(parsed);
+  return value === null ? { status: 'corrupt' } : { status: 'ok', value };
 }
 
 /** Rejects if the value could not be written. Callers must not swallow this. */

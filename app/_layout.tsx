@@ -1,5 +1,6 @@
 // app/_layout.tsx
-import '../src/core/i18n'; // Initialize i18n before everything else
+// Imported first so i18n initialises before everything else.
+import { isSupportedLanguage } from '../src/core/i18n';
 
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
@@ -24,7 +25,6 @@ import { useSecurityStore } from '../src/stores/securityStore';
 import { membershipService } from '../src/services/membershipService';
 import { storage } from '../src/services/storage';
 import { STORAGE_KEYS } from '../src/core/constants';
-import { SUPPORTED_LANGUAGES, type SupportedLanguage } from '../src/core/i18n';
 
 // SplashScreen.preventAutoHideAsync() is native-only; guard it for web
 if (Platform.OS !== 'web') {
@@ -36,11 +36,6 @@ const THEME_PREFERENCES = ['light', 'dark', 'system'] as const;
 function isThemePreference(value: string): value is (typeof THEME_PREFERENCES)[number] {
   return (THEME_PREFERENCES as readonly string[]).includes(value);
 }
-
-function isSupportedLanguage(value: string): value is SupportedLanguage {
-  return (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
-}
-
 function RootLayoutNav() {
   const router = useRouter();
   const segments = useSegments();
@@ -69,7 +64,7 @@ function RootLayoutNav() {
           useThemeStore.getState().setPreference(savedTheme);
         }
         if (savedLang && isSupportedLanguage(savedLang)) {
-          useLocaleStore.getState().setLanguage(savedLang);
+          useLocaleStore.getState().hydrateLanguage(savedLang);
         }
 
         // The app lock must be resolved before any screen renders.

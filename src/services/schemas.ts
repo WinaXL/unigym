@@ -10,6 +10,11 @@
 import type { Membership, MembershipStatus, QuotaType } from '../types/membership';
 import type { UserProfile } from '../types/auth';
 import type { AttendanceRecord } from '../types/attendance';
+import {
+  isStudentNumber,
+  migrateLegacyStudentNumber,
+  migrateLegacyUserId,
+} from '../utils/studentNumber';
 
 const MEMBERSHIP_STATUSES: readonly MembershipStatus[] = [
   'active',
@@ -78,12 +83,38 @@ export function isUserProfile(value: unknown): value is UserProfile {
   if (!isRecord(value)) return false;
   return (
     isNonEmptyString(value.id) &&
-    isNonEmptyString(value.studentId) &&
-    isNonEmptyString(value.fullName) &&
-    isOptional(value.avatarUrl, isNonEmptyString) &&
-    isOptional(value.faculty, isNonEmptyString) &&
-    isOptional(value.enrollmentYear, isFiniteNumber)
+    isStudentNumber(value.studentId) &&
+    isNonEmptyString(value.fullName)
   );
+}
+
+/**
+ * Read a stored profile, upgrading one written by an earlier build.
+ *
+ * Earlier builds saved an "STD"-prefixed student number (and a matching
+ * "user-STD…" id) plus faculty / enrollment-year fields that no longer exist.
+ * Those are rewritten to the current shape; anything that still fails the
+ * strict guard afterwards is rejected.
+ */
+export function parseStoredUserProfile(
+  value: unknown
+): { profile: UserProfile; migrated: boolean } | null {
+  if (!isRecord(value)) return null;
+  if (!isNonEmptyString(value.id) || !isNonEmptyString(value.studentId)) return null;
+
+  const profile = {
+    id: migrateLegacyUserId(value.id),
+    studentId: migrateLegacyStudentNumber(value.studentId),
+    fullName: value.fullName,
+  };
+  if (!isUserProfile(profile)) return null;
+
+  const migrated =
+    profile.id !== value.id ||
+    profile.studentId !== value.studentId ||
+    Object.keys(value).some((key) => !['id', 'studentId', 'fullName'].includes(key));
+
+  return { profile, migrated };
 }
 
 export function isAttendanceRecord(value: unknown): value is AttendanceRecord {

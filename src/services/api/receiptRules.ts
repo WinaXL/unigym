@@ -10,6 +10,7 @@
  * to remove.
  */
 import { isCalendarDate } from '../schemas';
+import { isStudentNumber } from '../../utils/studentNumber';
 
 /** Unicode dash variants that OCR and copy-paste routinely substitute for '-'. */
 const DASH_VARIANTS = /[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g;
@@ -47,10 +48,18 @@ export function normalizePersonName(raw: string | undefined | null): string {
   return raw.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-/** Canonical form of a student number: alphanumerics only, uppercased. */
-export function normalizeStudentNumber(raw: string | undefined | null): string {
-  if (typeof raw !== 'string') return '';
-  return raw.normalize('NFKC').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+/**
+ * Canonical form of a student number, or null if it is not purely numeric.
+ *
+ * NFKC folds full-width digits to ASCII, and spaces and dashes are treated as
+ * formatting ("2314 1035", "2314-1035"). Any other character — including an
+ * "STD" prefix — makes the value invalid rather than being silently stripped,
+ * so "STD23141035" and "23141035" can never be treated as the same student.
+ */
+export function normalizeStudentNumber(raw: string | undefined | null): string | null {
+  if (typeof raw !== 'string') return null;
+  const compact = raw.normalize('NFKC').replace(/[\s\-\u2010-\u2015\u2212]/g, '');
+  return isStudentNumber(compact) ? compact : null;
 }
 
 /**
