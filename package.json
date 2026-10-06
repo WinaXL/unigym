@@ -10,6 +10,7 @@
     "expo": "~57.0.27",
     "expo-camera": "~57.0.6",
     "expo-constants": "~57.0.19",
+    "expo-dev-client": "~57.0.19",
     "expo-font": "~57.0.4",
     "expo-haptics": "~57.0.3",
     "expo-image-picker": "~57.0.20",
@@ -45,7 +46,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "eas-build-post-install": "node -e \"require('fs').rmSync('node_modules/expo-ocr-kit/android/build',{recursive:true,force:true})\""
   },
   "private": true
 }
