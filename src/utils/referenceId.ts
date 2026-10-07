@@ -17,6 +17,10 @@ export function canonicalReferenceId(raw: string | undefined | null): string | n
   const canonical = raw
     .normalize('NFKC')
     .replace(DASH_VARIANTS, '-')
+    // İş Bankası prints the reference as "07.10.2026/3835/4/13". Dots and
+    // slashes are separators, folded so that spelling matches the dashed form.
+    .replace(/[.\/]/g, '-')
+    .replace(/-+/g, '-')
     .replace(/\s+/g, '')
     .toUpperCase();
 

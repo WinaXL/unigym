@@ -45,11 +45,21 @@ const DATE_LABELS = [
 ];
 
 const REFERENCE_LABELS = [
-  'receipt', 'reference', 'ref', 'transaction', 'txn', 'operation', 'order',
-  'check', 'invoice', 'document', 'чек', 'квитанция', 'квитанции', 'операция',
-  'операции', 'транзакция', 'түбіртек', 'makbuz', 'işlem', 'islem', 'dekont',
-  'fiş', 'fis', '№',
+  'receipt', 'reference', 'referans numarası', 'referans numarasi', 'referans',
+  'ref', 'transaction', 'txn', 'operation', 'order',
+  'check', 'invoice', 'document', 'belge no', 'чек', 'квитанция', 'квитанции',
+  'операция', 'операции', 'транзакция', 'түбіртек', 'makbuz', 'fiş', 'fis', '№',
 ];
+
+/**
+ * The gym receipt is an İş Bankası dekont. Its reference is printed
+ * "07.10.2026/3835/4/13" (date, then the bank's sequence).
+ */
+const BANK_REFERENCE = /(\d{2})[./-](\d{2})[./-](\d{4})\/(\d{2,6})\/(\d{1,4})\/(\d{1,4})(?!\d)/;
+
+/** "Açıklama : 23141035 MAXAT KALIYEV" — the number and the student, one cell. */
+const DESCRIPTION_LABELS = ['açıklama', 'aciklama'];
+const NUMBER_AND_NAME = /(\d{6,12})\s+([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]*(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’.-]*){0,3})/;
 
 const STUDENT_NUMBER_LABELS = [
   'student id', 'student no', 'student number', 'student #', 'student',
@@ -231,6 +241,35 @@ function digitRunsIn(row: string): string[] {
   return [...withoutDates(row).matchAll(DIGIT_RUN)].map((match) => match[1]);
 }
 
+function bankReferenceIn(value: string): string | null {
+  const match = BANK_REFERENCE.exec(value.replace(/\s+/g, ''));
+  if (!match) return null;
+  const canonical = canonicalReferenceId(
+    `${match[1]}-${match[2]}-${match[3]}-${match[4]}-${match[5]}-${match[6]}`
+  );
+  return plausibleReference(canonical) ? canonical : null;
+}
+
+/**
+ * Identity written in the dekont's Açıklama cell. Prefer a labelled row; fall
+ * back to the same "number then name" shape so a misread label still works.
+ * Other digit runs on the slip (customer number, VKN, IBAN groups) have no name
+ * beside them, so they are not taken as the student number.
+ */
+function extractDescribedStudent(rows: string[]): { studentNumber?: string; studentName?: string } {
+  const labelled = rows
+    .map((row) => valueAfterLabel(row, DESCRIPTION_LABELS, { identifier: false }))
+    .filter((value): value is string => !!value);
+  const candidates = labelled.length > 0 ? labelled : rows;
+
+  for (const value of candidates) {
+    const match = NUMBER_AND_NAME.exec(collapse(value));
+    if (!match || !plausibleName(match[2])) continue;
+    return { studentNumber: match[1], studentName: collapse(match[2]) };
+  }
+  return {};
+}
+
 function extractStudentNumber(rows: string[], hints: ReceiptHints): string | undefined {
   for (let index = 0; index < rows.length; index++) {
     const value = valueAfterLabel(rows[index], STUDENT_NUMBER_LABELS);
@@ -284,6 +323,11 @@ function extractReferenceId(rows: string[], exclude: Set<string>): string | unde
   // Compared on digits so a legacy "STD23141035" cannot pass as the receipt.
   const usable = (candidate: string | null): candidate is string =>
     plausibleReference(candidate) && !exclude.has(candidate.replace(/\D/g, ''));
+
+  for (const row of rows) {
+    const bank = bankReferenceIn(row);
+    if (usable(bank)) return bank;
+  }
 
   for (let index = 0; index < rows.length; index++) {
     const row = rows[index];
@@ -357,7 +401,8 @@ export function extractReceiptFields(
 ): ExtractedReceiptFields {
   const rows = reconstructRows(ocr).map((row) => row.normalize('NFKC'));
 
-  const studentNumber = extractStudentNumber(rows, hints);
+  const described = extractDescribedStudent(rows);
+  const studentNumber = described.studentNumber ?? extractStudentNumber(rows, hints);
   const paymentDate = extractPaymentDate(rows, localCalendarDate(now));
 
   // Never let the student number or a date double as the replay key.
@@ -367,7 +412,7 @@ export function extractReceiptFields(
   const referenceId = extractReferenceId(rows, exclude);
 
   return {
-    studentName: extractStudentName(rows, hints),
+    studentName: described.studentName ?? extractStudentName(rows, hints),
     studentNumber,
     paymentDate,
     referenceId,
