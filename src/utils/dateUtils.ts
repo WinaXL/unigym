@@ -1,6 +1,22 @@
 // src/utils/dateUtils.ts
 import { format, isToday, isYesterday } from 'date-fns';
 
+/**
+ * Keep a payment-date field in YYYY-MM-DD while the user types.
+ * "20261007" becomes "2026-10-07". A pasted day-first "07.10.2026" is turned
+ * around. Dashes are inserted from the digits, so backspace still works.
+ */
+export function maskPaymentDateInput(input: string): string {
+  const trimmed = input.trim();
+  const dayFirst = /^(\d{2})[./](\d{2})[./](\d{4})$/.exec(trimmed);
+  if (dayFirst) return `${dayFirst[3]}-${dayFirst[2]}-${dayFirst[1]}`;
+
+  const digits = input.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+}
+
 export function formatDate(isoString: string): string {
   try {
     return format(new Date(isoString), 'MMM d, yyyy');

@@ -14,6 +14,7 @@
 import { isCalendarDate } from './schemas';
 import { canonicalReferenceId } from '../utils/referenceId';
 import { localCalendarDate } from '../utils/dateUtils';
+import { MAX_RECEIPT_AGE_DAYS } from '../core/constants';
 
 export interface OcrTextBlock {
   text: string;
@@ -40,6 +41,11 @@ export interface ExtractedReceiptFields {
 
 // ── Labels ───────────────────────────────────────────────────────────────────
 
+/** Transaction date, ahead of "düzenleme tarihi" and other dates on the slip. */
+const PAYMENT_DATE_LABELS = [
+  'islem tarihi', 'payment date', 'paid on', 'оплачено',
+];
+
 const DATE_LABELS = [
   'payment date', 'paid on', 'date', 'дата', 'күні', 'tarih', 'tarihi', 'оплачено',
 ];
@@ -50,12 +56,6 @@ const REFERENCE_LABELS = [
   'check', 'invoice', 'document', 'belge no', 'чек', 'квитанция', 'квитанции',
   'операция', 'операции', 'транзакция', 'түбіртек', 'makbuz', 'fiş', 'fis', '№',
 ];
-
-/**
- * The gym receipt is an İş Bankası dekont. Its reference is printed
- * "07.10.2026/3835/4/13" (date, then the bank's sequence).
- */
-const BANK_REFERENCE = /(\d{2})[./-](\d{2})[./-](\d{4})\/(\d{2,6})\/(\d{1,4})\/(\d{1,4})(?!\d)/;
 
 /** "Açıklama : 23141035 MAXAT KALIYEV" — the number and the student, one cell. */
 const DESCRIPTION_LABELS = ['açıklama', 'aciklama'];
@@ -179,10 +179,6 @@ export function reconstructRows({ text, blocks }: OcrTextResult): string[] {
 
 // ── Dates ────────────────────────────────────────────────────────────────────
 
-const ISO_DATE = /(?:^|\D)(\d{4})[-./](\d{1,2})[-./](\d{1,2})(?!\d)/g;
-/** Day-first, as printed throughout the region this app serves. */
-const DAY_FIRST_DATE = /(?:^|\D)(\d{1,2})[./-](\d{1,2})[./-](\d{4}|\d{2})(?!\d)/g;
-
 function toIsoDate(year: number, month: number, day: number): string | null {
   if (year < 100) year += 2000;
   if (year < 2000 || year > 2099) return null;
@@ -190,15 +186,119 @@ function toIsoDate(year: number, month: number, day: number): string | null {
   return isCalendarDate(iso) ? iso : null;
 }
 
-function datesIn(row: string): string[] {
-  const found: string[] = [];
-  for (const match of row.matchAll(ISO_DATE)) {
-    const iso = toIsoDate(Number(match[1]), Number(match[2]), Number(match[3]));
-    if (iso) found.push(iso);
+/**
+ * Digits ML Kit confuses on this dekont's print. The read digit maps to what
+ * it might really have been. 0 is the usual victim: it comes back as 9 or 8
+ * ("07.10.2026" → "97.19.2826").
+ */
+const DIGIT_ALTS: Record<string, readonly string[]> = {
+  '0': ['0', '8', '9', '6'],
+  '1': ['1', '7'],
+  '2': ['2'],
+  '3': ['3', '8'],
+  '4': ['4'],
+  '5': ['5', '6'],
+  '6': ['6', '5', '0', '8'],
+  '7': ['7', '1'],
+  '8': ['8', '0', '3', '6', '9'],
+  '9': ['9', '0', '8'],
+};
+
+const MAX_DIGIT_CORRECTIONS = 4;
+
+function foldTr(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\u0307/g, '')
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c');
+}
+
+function hasFoldedLabel(row: string, labels: readonly string[]): boolean {
+  const folded = foldTr(row);
+  return labels.some((label) => {
+    const needle = foldTr(label);
+    const start = folded.indexOf(needle);
+    if (start < 0) return false;
+    const before = folded[start - 1];
+    const after = folded[start + needle.length];
+    const letter = (char?: string) => !!char && char >= 'a' && char <= 'z';
+    return !letter(before) && !letter(after);
+  });
+}
+
+function calendarDaysBefore(laterIso: string, earlierIso: string): number {
+  const utc = (iso: string) => {
+    const [year, month, day] = iso.split('-').map(Number);
+    return Date.UTC(year, month - 1, day);
+  };
+  return Math.round((utc(laterIso) - utc(earlierIso)) / 86_400_000);
+}
+
+/** How many digits differ, or null when a difference is not a known confusion. */
+function confusionDistance(read: string, actual: string): number | null {
+  if (read.length !== actual.length) return null;
+  let changes = 0;
+  for (let i = 0; i < read.length; i++) {
+    if (read[i] === actual[i]) continue;
+    if (!(DIGIT_ALTS[read[i]] ?? [read[i]]).includes(actual[i])) return null;
+    changes++;
   }
-  for (const match of row.matchAll(DAY_FIRST_DATE)) {
-    const iso = toIsoDate(Number(match[3]), Number(match[2]), Number(match[1]));
-    if (iso) found.push(iso);
+  return changes;
+}
+
+/**
+ * Turn an 8-digit day-month-year, possibly misread, into a real payment date
+ * inside the freshness window. The reading with the fewest changed digits wins.
+ */
+function recoverDayFirstDigits(
+  digits: string,
+  today: string
+): { iso: string; changes: number } | null {
+  if (!/^\d{8}$/.test(digits)) return null;
+
+  let best: { iso: string; changes: number } | null = null;
+  const alts = digits.split('').map((digit) => DIGIT_ALTS[digit] ?? [digit]);
+
+  function visit(pos: number, built: string, changes: number) {
+    if (changes > MAX_DIGIT_CORRECTIONS) return;
+    if (best && changes > best.changes) return;
+    if (pos === digits.length) {
+      const iso = toIsoDate(
+        Number(built.slice(4, 8)),
+        Number(built.slice(2, 4)),
+        Number(built.slice(0, 2))
+      );
+      if (!iso || iso > today) return;
+      if (calendarDaysBefore(today, iso) > MAX_RECEIPT_AGE_DAYS) return;
+      if (!best || changes < best.changes || (changes === best.changes && iso > best.iso)) {
+        best = { iso, changes };
+      }
+      return;
+    }
+    const seen = new Set<string>();
+    for (const alt of alts[pos]) {
+      if (seen.has(alt)) continue;
+      seen.add(alt);
+      visit(pos + 1, built + alt, changes + (alt === digits[pos] ? 0 : 1));
+    }
+  }
+
+  visit(0, '', 0);
+  return best;
+}
+
+/** Day-first dates on a row, repaired when OCR damaged the digits. */
+function recoveredDatesIn(row: string, today: string): { iso: string; changes: number }[] {
+  const found: { iso: string; changes: number }[] = [];
+  const shape = /(?:^|\D)(\d{2})[./-](\d{2})[./-](\d{4})(?!\d)/g;
+  for (const match of row.matchAll(shape)) {
+    const recovered = recoverDayFirstDigits(match[1] + match[2] + match[3], today);
+    if (recovered) found.push(recovered);
   }
   return found;
 }
@@ -210,27 +310,38 @@ function withoutDates(row: string): string {
     .replace(/\d{1,2}[./-]\d{1,2}[./-](?:\d{4}|\d{2})/g, ' ');
 }
 
-function extractPaymentDate(rows: string[], today: string): string | undefined {
-  const labelled: string[] = [];
-  const other: string[] = [];
-
+function datesBesideLabel(
+  rows: string[],
+  labels: readonly string[],
+  today: string
+): { iso: string; changes: number }[] {
+  const found: { iso: string; changes: number }[] = [];
   rows.forEach((row, index) => {
-    const dates = datesIn(row);
-    if (findLabelEnd(row, DATE_LABELS) !== null) {
-      // A label alone on its row is usually followed by the value.
-      labelled.push(...(dates.length > 0 ? dates : datesIn(rows[index + 1] ?? '')));
-    } else {
-      other.push(...dates);
-    }
+    if (!hasFoldedLabel(row, labels) && findLabelEnd(row, labels) === null) return;
+    const onRow = recoveredDatesIn(row, today);
+    found.push(...(onRow.length > 0 ? onRow : recoveredDatesIn(rows[index + 1] ?? '', today)));
   });
+  return found;
+}
 
-  const pool = labelled.length > 0 ? labelled : other;
-  if (pool.length === 0) return undefined;
+/** Fewest OCR corrections, then the latest date still inside the window. */
+function bestRecovered(dates: { iso: string; changes: number }[]): string | undefined {
+  if (dates.length === 0) return undefined;
+  return dates.reduce((best, date) =>
+    date.changes < best.changes || (date.changes === best.changes && date.iso > best.iso)
+      ? date
+      : best
+  ).iso;
+}
 
-  // A payment cannot postdate the scan. If only future dates were read, return
-  // one anyway so the adapter can refuse it with a specific reason.
-  const past = pool.filter((date) => date <= today).sort();
-  return past.length > 0 ? past[past.length - 1] : pool.sort()[0];
+function extractPaymentDate(rows: string[], today: string): string | undefined {
+  const transaction = bestRecovered(datesBesideLabel(rows, PAYMENT_DATE_LABELS, today));
+  if (transaction) return transaction;
+
+  const labelled = bestRecovered(datesBesideLabel(rows, DATE_LABELS, today));
+  if (labelled) return labelled;
+
+  return bestRecovered(rows.flatMap((row) => recoveredDatesIn(row, today)));
 }
 
 // ── Student number ───────────────────────────────────────────────────────────
@@ -241,13 +352,68 @@ function digitRunsIn(row: string): string[] {
   return [...withoutDates(row).matchAll(DIGIT_RUN)].map((match) => match[1]);
 }
 
-function bankReferenceIn(value: string): string | null {
-  const match = BANK_REFERENCE.exec(value.replace(/\s+/g, ''));
-  if (!match) return null;
-  const canonical = canonicalReferenceId(
-    `${match[1]}-${match[2]}-${match[3]}-${match[4]}-${match[5]}-${match[6]}`
-  );
-  return plausibleReference(canonical) ? canonical : null;
+interface BankReferenceMatch {
+  /** DDMMYYYY as OCR read it. */
+  prefix: string;
+  tail: string;
+}
+
+function bankReferenceMatches(rows: string[]): BankReferenceMatch[] {
+  const matches: BankReferenceMatch[] = [];
+  const pattern = /(\d{2})[./-](\d{2})[./-](\d{4})\/(\d{2,6})\/(\d{1,4})\/(\d{1,4})(?!\d)/g;
+  for (const row of rows) {
+    const compact = row.replace(/\s+/g, '');
+    for (const match of compact.matchAll(pattern)) {
+      matches.push({
+        prefix: match[1] + match[2] + match[3],
+        tail: `${match[4]}-${match[5]}-${match[6]}`,
+      });
+    }
+  }
+  return matches;
+}
+
+/**
+ * Pick the İş Bankası reference. The date prefix is repaired from the payment
+ * date when OCR confused it ("97.19.2826" → "07.10.2026"). The sequence after
+ * the slashes is kept as read. When two passes disagree, the reading whose
+ * date needed fewer corrections wins — that is the clearer image.
+ */
+function bestBankReference(
+  rows: string[],
+  today: string,
+  paymentDate: string | undefined,
+  exclude: Set<string>
+): string | undefined {
+  const target = paymentDate
+    ? `${paymentDate.slice(8, 10)}${paymentDate.slice(5, 7)}${paymentDate.slice(0, 4)}`
+    : null;
+
+  let best: { id: string; changes: number } | null = null;
+  for (const match of bankReferenceMatches(rows)) {
+    let changes: number | null = null;
+    let iso = paymentDate ?? null;
+
+    if (target) {
+      const distance = confusionDistance(match.prefix, target);
+      if (distance !== null && distance <= MAX_DIGIT_CORRECTIONS) changes = distance;
+    }
+    if (changes === null) {
+      const recovered = recoverDayFirstDigits(match.prefix, today);
+      if (!recovered) continue;
+      changes = recovered.changes;
+      iso = recovered.iso;
+    }
+    if (!iso) continue;
+
+    const day = iso.slice(8, 10);
+    const month = iso.slice(5, 7);
+    const year = iso.slice(0, 4);
+    const id = canonicalReferenceId(`${day}-${month}-${year}-${match.tail}`);
+    if (!plausibleReference(id) || exclude.has(id.replace(/\D/g, ''))) continue;
+    if (!best || changes < best.changes) best = { id, changes };
+  }
+  return best?.id;
 }
 
 /**
@@ -319,15 +485,18 @@ function referenceFromValue(value: string): string | null {
 /** Prefix-and-number shapes such as "RCP-482913" or "TXN00418827". */
 const PREFIXED_REFERENCE = /(?:^|[^A-Z0-9])([A-Z]{2,6}[-\u2010-\u2015\u2212]?\d{5,20})(?![A-Z0-9])/;
 
-function extractReferenceId(rows: string[], exclude: Set<string>): string | undefined {
+function extractReferenceId(
+  rows: string[],
+  exclude: Set<string>,
+  today: string,
+  paymentDate: string | undefined
+): string | undefined {
   // Compared on digits so a legacy "STD23141035" cannot pass as the receipt.
   const usable = (candidate: string | null): candidate is string =>
     plausibleReference(candidate) && !exclude.has(candidate.replace(/\D/g, ''));
 
-  for (const row of rows) {
-    const bank = bankReferenceIn(row);
-    if (usable(bank)) return bank;
-  }
+  const bank = bestBankReference(rows, today, paymentDate, exclude);
+  if (bank) return bank;
 
   for (let index = 0; index < rows.length; index++) {
     const row = rows[index];
@@ -401,15 +570,26 @@ export function extractReceiptFields(
 ): ExtractedReceiptFields {
   const rows = reconstructRows(ocr).map((row) => row.normalize('NFKC'));
 
+  const today = localCalendarDate(now);
   const described = extractDescribedStudent(rows);
   const studentNumber = described.studentNumber ?? extractStudentNumber(rows, hints);
-  const paymentDate = extractPaymentDate(rows, localCalendarDate(now));
+  let paymentDate = extractPaymentDate(rows, today);
 
   // Never let the student number or a date double as the replay key.
   const exclude = new Set<string>();
   if (studentNumber) exclude.add(studentNumber);
   if (paymentDate) exclude.add(paymentDate.replace(/-/g, ''));
-  const referenceId = extractReferenceId(rows, exclude);
+  const referenceId = extractReferenceId(rows, exclude, today, paymentDate);
+
+  // The reference starts with the payment date. Use it when the "İşlem Tarihi"
+  // line itself was not readable.
+  if (!paymentDate && referenceId) {
+    const prefix = /^(\d{2})-(\d{2})-(\d{4})-/.exec(referenceId);
+    if (prefix) {
+      const iso = `${prefix[3]}-${prefix[2]}-${prefix[1]}`;
+      if (isCalendarDate(iso)) paymentDate = iso;
+    }
+  }
 
   return {
     studentName: described.studentName ?? extractStudentName(rows, hints),

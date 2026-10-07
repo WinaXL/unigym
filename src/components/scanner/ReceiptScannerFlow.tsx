@@ -13,6 +13,8 @@ import {
   Platform,
   Linking,
   KeyboardAvoidingView,
+  Keyboard,
+  Dimensions,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -32,7 +34,7 @@ import {
 } from '../../services/receiptParser';
 import { hapticService } from '../../services/hapticService';
 import { Typography, Spacing, BorderRadius } from '../../theme';
-import { formatDate } from '../../utils/dateUtils';
+import { formatDate, maskPaymentDateInput } from '../../utils/dateUtils';
 import {
   digitsOnly,
   isStudentNumber,
@@ -92,6 +94,8 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
+  const sheetScrollRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   // Async work started before an unmount must not write state afterwards.
   const mountedRef = useRef(true);
@@ -101,6 +105,25 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (keyboardHeight <= 0 || step !== 'verify_modal') return;
+    const timer = setTimeout(() => sheetScrollRef.current?.scrollToEnd({ animated: true }), 50);
+    return () => clearTimeout(timer);
+  }, [keyboardHeight, step]);
 
   function failWith(messageKey: string) {
     if (!mountedRef.current) return;
@@ -225,7 +248,8 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
       failWith('scan.errorInvalidStudentNumber');
       return;
     }
-    if (!paymentDate.trim()) {
+    const paymentDateValue = maskPaymentDateInput(paymentDate);
+    if (!paymentDateValue.trim()) {
       failWith('scan.errorNoDate');
       return;
     }
@@ -239,7 +263,7 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
       const receipt: ReceiptData = {
         studentName: studentName.trim(),
         studentNumber: studentNumber.trim(),
-        paymentDate: paymentDate.trim(),
+        paymentDate: paymentDateValue,
         referenceId: referenceId.trim(),
       };
 
@@ -373,11 +397,30 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
         onRequestClose={() => setStep('idle')}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior="padding"
           style={styles.modalBackdrop}
         >
-          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetScroll}>
+          <View
+            style={[
+              styles.modalSheet,
+              {
+                backgroundColor: colors.surface,
+                maxHeight:
+                  keyboardHeight > 0
+                    ? Math.max(280, Dimensions.get('screen').height - keyboardHeight - 24)
+                    : '90%',
+              },
+            ]}
+          >
+            <ScrollView
+              ref={sheetScrollRef}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={[
+                styles.sheetScroll,
+                keyboardHeight > 0 && { paddingBottom: Spacing[6] },
+              ]}
+            >
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetPill, { backgroundColor: colors.border }]} />
                 <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>
@@ -428,9 +471,15 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
                   <TextInput
                     style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
                     value={paymentDate}
-                    onChangeText={setPaymentDate}
+                    onChangeText={(text) => setPaymentDate(maskPaymentDateInput(text))}
+                    onFocus={() => {
+                      setTimeout(() => sheetScrollRef.current?.scrollToEnd({ animated: true }), 50);
+                    }}
                     placeholder="YYYY-MM-DD"
                     placeholderTextColor={colors.textTertiary}
+                    keyboardType="number-pad"
+                    maxLength={10}
+                    autoCorrect={false}
                   />
                 </View>
 
