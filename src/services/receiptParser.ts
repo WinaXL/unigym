@@ -10,9 +10,11 @@
 import { requireOptionalNativeModule } from 'expo';
 import type { OcrResult } from 'expo-ocr-kit';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { decode as decodeJpeg } from 'jpeg-js';
 
 import type { ReceiptData } from '../types/api';
 import { extractReceiptFields, type OcrTextBlock, type ReceiptHints } from './receiptTextParser';
+import { findPaperFrame } from './paperFrame';
 
 export type { ReceiptHints } from './receiptTextParser';
 
@@ -45,8 +47,8 @@ const ocrModule = requireOptionalNativeModule<OcrNativeModule>('ExpoOcrKit');
 
 export const OCR_AVAILABLE = ocrModule !== null;
 
-/** Recognition normally takes well under a second; a stall must not hang the UI. */
-const OCR_TIMEOUT_MS = 20_000;
+/** Full page plus a column pass, after an optional crop. */
+const OCR_TIMEOUT_MS = 35_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -62,6 +64,89 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
       }
     );
   });
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = globalThis.atob(base64.replace(/\s/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+type Manipulator = ReturnType<typeof ImageManipulator.manipulate>;
+type RenderedImage = Awaited<ReturnType<Manipulator['renderAsync']>>;
+
+function releaseQuietly(resource: { release?: () => void } | null) {
+  try {
+    resource?.release?.();
+  } catch {
+    // Already released.
+  }
+}
+
+/**
+ * Crop away the black border around a receipt photographed on a screen, then
+ * enlarge it so the reference digits are large enough to read. Returns the
+ * original URI when the paper already fills the photo or the crop fails.
+ */
+async function focusOnPaper(uri: string): Promise<string> {
+  let context: Manipulator | null = null;
+  let image: RenderedImage | null = null;
+  try {
+    context = ImageManipulator.manipulate(uri);
+    image = await context.renderAsync();
+    const originalWidth = image.width;
+    const originalHeight = image.height;
+    releaseQuietly(image);
+    image = null;
+    releaseQuietly(context);
+    context = null;
+    if (originalWidth < 32 || originalHeight < 32) return uri;
+
+    context = ImageManipulator.manipulate(uri);
+    context.resize({ width: 480 });
+    image = await context.renderAsync();
+    const preview = await image.saveAsync({
+      compress: 0.6,
+      format: SaveFormat.JPEG,
+      base64: true,
+    });
+    releaseQuietly(image);
+    image = null;
+    releaseQuietly(context);
+    context = null;
+    if (!preview.base64) return uri;
+
+    const decoded = decodeJpeg(base64ToBytes(preview.base64), {
+      useTArray: true,
+      formatAsRGBA: true,
+      maxResolutionInMP: 2,
+    });
+    const frame = findPaperFrame(decoded.data, decoded.width, decoded.height);
+    if (!frame) return uri;
+
+    const scale = originalWidth / decoded.width;
+    const originX = Math.max(0, Math.round(frame.x * scale));
+    const originY = Math.max(0, Math.round(frame.y * scale));
+    const cropWidth = Math.min(originalWidth - originX, Math.round(frame.width * scale));
+    const cropHeight = Math.min(originalHeight - originY, Math.round(frame.height * scale));
+    if (cropWidth < 64 || cropHeight < 64) return uri;
+
+    context = ImageManipulator.manipulate(uri);
+    context.crop({ originX, originY, width: cropWidth, height: cropHeight });
+    const longSide = Math.max(cropWidth, cropHeight);
+    if (longSide < 1500) {
+      context.resize({ width: Math.round((cropWidth * 1800) / longSide) });
+    }
+    image = await context.renderAsync();
+    const focused = await image.saveAsync({ compress: 0.95, format: SaveFormat.JPEG });
+    return focused.uri || uri;
+  } catch {
+    return uri;
+  } finally {
+    releaseQuietly(image);
+    releaseQuietly(context);
+  }
 }
 
 /**
@@ -126,6 +211,8 @@ export async function parseReceiptImage(
 ): Promise<ReceiptData> {
   if (!ocrModule) throw new ReceiptScanError('OCR_UNAVAILABLE');
 
+  const sourceUri = await focusOnPaper(imageUri);
+
   const deadline = Date.now() + OCR_TIMEOUT_MS;
   const recognize = (uri: string) => {
     const remaining = deadline - Date.now();
@@ -135,12 +222,12 @@ export async function parseReceiptImage(
 
   let full: OcrResult;
   try {
-    full = await recognize(imageUri);
+    full = await recognize(sourceUri);
   } catch (error) {
     throw new ReceiptScanError('UNREADABLE_IMAGE', { cause: error });
   }
 
-  const columnUri = await cropReferenceColumn(imageUri);
+  const columnUri = await cropReferenceColumn(sourceUri);
   let column: OcrResult | null = null;
   if (columnUri) {
     try {
