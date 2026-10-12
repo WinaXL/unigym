@@ -2,9 +2,10 @@
 import { Tabs } from 'expo-router';
 import { Platform, View, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useThemeColors } from '../../src/hooks/useThemeColors';
+import { useThemeColors } from '../../hooks/useThemeColors';
 import { Ionicons } from '@expo/vector-icons';
-import { hapticService } from '../../src/services/hapticService';
+import { hapticService } from '../../services/hapticService';
+import { useWorkoutRuntime } from '../../hooks/useWorkoutRuntime';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -25,6 +26,7 @@ function TabIcon({
 }
 
 export default function TabsLayout() {
+  useWorkoutRuntime();
   const { t } = useTranslation();
   const colors = useThemeColors();
 
@@ -66,6 +68,15 @@ export default function TabsLayout() {
           title: t('tabs.scan'),
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name={focused ? 'receipt' : 'receipt-outline'} focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="workouts"
+        options={{
+          title: t('tabs.workouts'),
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name={focused ? 'barbell' : 'barbell-outline'} focused={focused} color={color} />
           ),
         }}
       />

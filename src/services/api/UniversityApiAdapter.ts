@@ -77,10 +77,12 @@ export class UniversityApiAdapter implements IApiAdapter {
   }
 
   /**
-   * The server is the authority here: it owns the spent-receipt ledger, the
+   * The server is the authority here: it owns the per-student verification ledger, the
    * ownership check against the bound student, the freshness window and the
    * granted expiry date. The client sends what it scanned plus which student is
    * currently bound, and caches whatever comes back.
+   * Shared references are allowed; repeat verification by the same student
+   * must succeed idempotently without extending membership a second time.
    */
   async validateReceipt(
     receipt: ReceiptData,

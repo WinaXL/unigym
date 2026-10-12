@@ -360,9 +360,24 @@ interface BankReferenceMatch {
 
 function bankReferenceMatches(rows: string[]): BankReferenceMatch[] {
   const matches: BankReferenceMatch[] = [];
-  const pattern = /(\d{2})[./-](\d{2})[./-](\d{4})\/(\d{2,6})\/(\d{1,4})\/(\d{1,4})(?!\d)/g;
-  for (const row of rows) {
-    const compact = row.replace(/\s+/g, '');
+  const pattern = /(?<!\d)(\d{2})[./-](\d{2})[./-](\d{4})[./-](\d{2,6})[./-](\d{1,4})[./-](\d{1,4})(?!\d)/g;
+  const candidates = [...rows];
+  // ML Kit / Vision can put the sequence or final group on a new line.
+  rows.forEach((row, index) => {
+    let joined = row;
+    for (let offset = 1; offset <= 2; offset++) {
+      const next = rows[index + offset];
+      if (!next || !/^[\s\dOQoIlL|./\\\-–—\u2044\u2215]+$/.test(next)) break;
+      // A line break can replace the slash between the date and sequence.
+      const dateEndsRow = /[\dOQoIlL|]{2}[./-][\dOQoIlL|]{2}[./-][\dOQoIlL|]{4}\s*$/.test(joined);
+      const sequenceRow = /^\s*[\dOQoIlL|]{2,6}[./\\\-\u2044\u2215]/.test(next);
+      joined += (dateEndsRow && sequenceRow ? '/' : '') + next;
+      candidates.push(joined);
+    }
+  });
+  for (const row of candidates) {
+    const compact = row.replace(/\s+/g, '').replace(/[\\\u2044\u2215]/g, '/').replace(/[–—]/g, '-')
+      .toUpperCase().replace(/[OQ]/g, '0').replace(/[IL|]/g, '1');
     for (const match of compact.matchAll(pattern)) {
       matches.push({
         prefix: match[1] + match[2] + match[3],
@@ -568,7 +583,9 @@ export function extractReceiptFields(
   hints: ReceiptHints = {},
   now: Date = new Date()
 ): ExtractedReceiptFields {
-  const rows = reconstructRows(ocr).map((row) => row.normalize('NFKC'));
+  // Some devices supply incomplete blocks even though the raw text is intact.
+  const rows = [...new Set([...reconstructRows(ocr), ...ocr.text.split(/\r?\n/).map((row) => row.trim()).filter(Boolean)])]
+    .map((row) => row.normalize('NFKC'));
 
   const today = localCalendarDate(now);
   const described = extractDescribedStudent(rows);

@@ -34,14 +34,13 @@ const OCR_CONFUSABLES: Record<string, string> = {
 };
 
 /**
- * Key used to decide whether a reference has already been redeemed.
+ * Key used to identify repeat verification of a reference by the same student.
  *
  * The reference is read by OCR, so two photos of one receipt can spell it
  * differently ("RCP-482913" / "RCP482913", "O" / "0"). Comparing canonical
  * strings would treat each misreading as a fresh receipt. Dropping dashes and
- * folding confusable characters makes those variants collide; the cost is that
- * two genuinely distinct references differing only in such characters are
- * also treated as one, which errs toward refusing rather than allowing reuse.
+ * folding confusable characters makes those variants return the existing
+ * membership. Different students may verify the same key independently.
  */
 export function referenceReplayKey(canonical: string): string {
   return canonical

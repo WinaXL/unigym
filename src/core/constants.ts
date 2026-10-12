@@ -39,7 +39,7 @@ export const STORAGE_KEYS = {
 /**
  * Keys owned exclusively by the simulated backend (MockApiAdapter).
  *
- * These stand in for server-side database rows and hold the spent-receipt
+ * These stand in for server-side database rows and hold the per-student receipt
  * ledger plus the authoritative membership record. Client code must never read
  * or write them directly, and `clearClientState()` deliberately leaves them
  * alone: resetting your device profile must not hand back already-redeemed

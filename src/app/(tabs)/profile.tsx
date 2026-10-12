@@ -13,21 +13,22 @@ import {
 import { useTranslation } from 'react-i18next';
 import * as LocalAuthentication from 'expo-local-authentication';
 
-import { SafeScreen } from '../../src/components/ui/SafeScreen';
-import { Card } from '../../src/components/ui/Card';
-import { Button } from '../../src/components/ui/Button';
-import { useThemeColors } from '../../src/hooks/useThemeColors';
-import { useAuthStore } from '../../src/stores/authStore';
-import { useMembershipStore } from '../../src/stores/membershipStore';
-import { useSessionStore } from '../../src/stores/sessionStore';
-import { useHistoryStore } from '../../src/stores/historyStore';
-import { useSecurityStore } from '../../src/stores/securityStore';
-import { useThemeStore } from '../../src/stores/themeStore';
-import { LanguageOptions } from '../../src/components/ui/LanguageOptions';
-import { hapticService } from '../../src/services/hapticService';
-import { storage } from '../../src/services/storage';
-import { Typography, Spacing, BorderRadius } from '../../src/theme';
-import { STORAGE_KEYS, APP_VERSION } from '../../src/core/constants';
+import { SafeScreen } from '../../components/ui/SafeScreen';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { useAuthStore } from '../../stores/authStore';
+import { useMembershipStore } from '../../stores/membershipStore';
+import { useSessionStore } from '../../stores/sessionStore';
+import { useHistoryStore } from '../../stores/historyStore';
+import { useWorkoutStore } from '../../stores/workoutStore';
+import { useSecurityStore } from '../../stores/securityStore';
+import { useThemeStore } from '../../stores/themeStore';
+import { LanguageOptions } from '../../components/ui/LanguageOptions';
+import { hapticService } from '../../services/hapticService';
+import { storage } from '../../services/storage';
+import { Typography, Spacing, BorderRadius } from '../../theme';
+import { STORAGE_KEYS, APP_VERSION } from '../../core/constants';
 import { Ionicons } from '@expo/vector-icons';
 
 type ThemeOption = 'light' | 'dark' | 'system';
@@ -76,9 +77,10 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             hapticService.heavy();
-            // Clears client-side state only. The spent-receipt ledger is server
+            // Clears client-side state only. The verification ledger is server
             // state and is deliberately left intact: resetting the device must
             // not hand back receipts that have already been redeemed.
+            await useWorkoutStore.getState().reset();
             await useAuthStore.getState().clearAuth();
             await useMembershipStore.getState().resetMembership();
             await useSessionStore.getState().clearSession();

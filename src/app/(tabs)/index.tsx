@@ -6,23 +6,26 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
-import { SafeScreen } from '../../src/components/ui/SafeScreen';
-import { Card } from '../../src/components/ui/Card';
-import { Button } from '../../src/components/ui/Button';
-import { MembershipCard } from '../../src/components/membership/MembershipCard';
-import { useThemeColors } from '../../src/hooks/useThemeColors';
-import { useAuthStore } from '../../src/stores/authStore';
-import { useMembershipStore } from '../../src/stores/membershipStore';
-import { useSessionStore } from '../../src/stores/sessionStore';
-import { useHistoryStore } from '../../src/stores/historyStore';
-import { hapticService } from '../../src/services/hapticService';
-import { Typography, Spacing, BorderRadius } from '../../src/theme';
-import { getGreetingTime, formatTime } from '../../src/utils/dateUtils';
+import { SafeScreen } from '../../components/ui/SafeScreen';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { MembershipCard } from '../../components/membership/MembershipCard';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { useAuthStore } from '../../stores/authStore';
+import { useMembershipStore } from '../../stores/membershipStore';
+import { useSessionStore } from '../../stores/sessionStore';
+import { useHistoryStore } from '../../stores/historyStore';
+import { hapticService } from '../../services/hapticService';
+import { Typography, Spacing, BorderRadius } from '../../theme';
+import { getGreetingTime, formatTime } from '../../utils/dateUtils';
+import { StreakCard } from '../../components/workouts/StreakCard';
+import { useWorkoutStore } from '../../stores/workoutStore';
 
 export default function DashboardScreen() {
   const { t } = useTranslation();
@@ -38,6 +41,7 @@ export default function DashboardScreen() {
   const checkIn = useSessionStore((s) => s.checkIn);
   const checkOut = useSessionStore((s) => s.checkOut);
   const records = useHistoryStore((s) => s.records);
+  const hasWorkoutPlan = useWorkoutStore((s) => s.progress.schedules.length > 0);
 
   const firstName = user?.fullName?.split(' ')[0] ?? '';
   const greeting = t('dashboard.greeting', {
@@ -65,7 +69,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeScreen noPadding>
-      <View style={[styles.container, { paddingHorizontal: Spacing[6] }]}>
+      <ScrollView contentContainerStyle={[styles.container, { paddingHorizontal: Spacing[6] }]}>
         {/* Main Content Group with Uniform Spacing */}
         <View style={styles.mainContent}>
           {/* Header */}
@@ -151,6 +155,11 @@ export default function DashboardScreen() {
             )}
           </View>
 
+          {hasWorkoutPlan ? (
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('workouts.title')} onPress={() => router.push('/(tabs)/workouts')}>
+              <StreakCard />
+            </TouchableOpacity>
+          ) : null}
           {/* Stats Row */}
           <View style={styles.statsRow}>
             <Card style={styles.statCard}>
@@ -182,17 +191,18 @@ export default function DashboardScreen() {
           <Text style={styles.scanButtonText}>{t('dashboard.scanReceipt')}</Text>
           <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     paddingTop: Spacing[6],
     paddingBottom: Spacing[4],
     justifyContent: 'space-between',
+    gap: Spacing[4],
   },
   mainContent: {
     gap: Spacing[4],

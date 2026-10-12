@@ -13,12 +13,12 @@ import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useThemeColors } from '../../src/hooks/useThemeColors';
-import { Card } from '../../src/components/ui/Card';
-import { ReceiptScannerFlow } from '../../src/components/scanner/ReceiptScannerFlow';
-import { LanguageSwitcher } from '../../src/components/ui/LanguageSwitcher';
-import { hapticService } from '../../src/services/hapticService';
-import { Typography, Spacing, BorderRadius } from '../../src/theme';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { Card } from '../../components/ui/Card';
+import { ReceiptScannerFlow } from '../../components/scanner/ReceiptScannerFlow';
+import { LanguageSwitcher } from '../../components/ui/LanguageSwitcher';
+import { hapticService } from '../../services/hapticService';
+import { Typography, Spacing, BorderRadius } from '../../theme';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();

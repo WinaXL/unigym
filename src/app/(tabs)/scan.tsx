@@ -4,10 +4,10 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 
-import { SafeScreen } from '../../src/components/ui/SafeScreen';
-import { ReceiptScannerFlow } from '../../src/components/scanner/ReceiptScannerFlow';
-import { useThemeColors } from '../../src/hooks/useThemeColors';
-import { Typography, Spacing } from '../../src/theme';
+import { SafeScreen } from '../../components/ui/SafeScreen';
+import { ReceiptScannerFlow } from '../../components/scanner/ReceiptScannerFlow';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { Typography, Spacing } from '../../theme';
 
 export default function ScanScreen() {
   const { t } = useTranslation();

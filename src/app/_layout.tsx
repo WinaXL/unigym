@@ -1,6 +1,6 @@
 // app/_layout.tsx
 // Imported first so i18n initialises before everything else.
-import { isSupportedLanguage } from '../src/core/i18n';
+import { isSupportedLanguage } from '../core/i18n';
 
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
@@ -11,20 +11,20 @@ import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { queryClient } from '../src/core/queryClient';
-import { ApiProvider, useApiAdapter } from '../src/services/ApiProvider';
-import { AppErrorBoundary } from '../src/components/ui/AppErrorBoundary';
-import { BiometricGate } from '../src/components/security/BiometricGate';
-import { useAuthStore } from '../src/stores/authStore';
-import { useMembershipStore } from '../src/stores/membershipStore';
-import { useSessionStore } from '../src/stores/sessionStore';
-import { useHistoryStore } from '../src/stores/historyStore';
-import { useThemeStore } from '../src/stores/themeStore';
-import { useLocaleStore } from '../src/stores/localeStore';
-import { useSecurityStore } from '../src/stores/securityStore';
-import { membershipService } from '../src/services/membershipService';
-import { storage } from '../src/services/storage';
-import { STORAGE_KEYS } from '../src/core/constants';
+import { queryClient } from '../core/queryClient';
+import { ApiProvider, useApiAdapter } from '../services/ApiProvider';
+import { AppErrorBoundary } from '../components/ui/AppErrorBoundary';
+import { BiometricGate } from '../components/security/BiometricGate';
+import { useAuthStore } from '../stores/authStore';
+import { useMembershipStore } from '../stores/membershipStore';
+import { useSessionStore } from '../stores/sessionStore';
+import { useHistoryStore } from '../stores/historyStore';
+import { useThemeStore } from '../stores/themeStore';
+import { useLocaleStore } from '../stores/localeStore';
+import { useSecurityStore } from '../stores/securityStore';
+import { membershipService } from '../services/membershipService';
+import { storage } from '../services/storage';
+import { STORAGE_KEYS } from '../core/constants';
 
 // SplashScreen.preventAutoHideAsync() is native-only; guard it for web
 if (Platform.OS !== 'web') {

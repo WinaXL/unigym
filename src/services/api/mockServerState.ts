@@ -3,7 +3,7 @@
  * Simulated server-side state for MockApiAdapter.
  *
  * This module stands in for the university backend until the real API exists.
- * It is the only writer of the spent-receipt ledger and the membership record,
+ * It is the only writer of the per-student verification ledger and membership record,
  * and it is the only place where "is this receipt valid and what does it grant"
  * is decided. Client stores cache its answers and nothing more.
  *
@@ -224,18 +224,27 @@ export const mockServerState = {
       if (ageDays < 0) return reject(receipt, 'FUTURE_DATE');
       if (ageDays > MAX_RECEIPT_AGE_DAYS) return reject(receipt, 'DATE_EXPIRED');
 
-      // 5. Replay check. Throws rather than defaulting to an empty ledger, so a
-      //    damaged ledger refuses the redemption instead of permitting every
-      //    receipt ever used.
+      // 5. References are shared across students. Re-verifying the same
+      //    reference for one student succeeds without extending access again.
       const ledger = await loadLedger();
       const replayKey = referenceReplayKey(ref);
-      if (ledger.some((entry) => referenceReplayKey(entry.ref) === replayKey)) {
-        return reject(receipt, 'ALREADY_USED');
-      }
-
       const memberships = await loadMemberships();
       const userId = userIdFor(receiptStudentNumber);
       const existing = memberships[userId];
+      const alreadyVerified = ledger.some((entry) =>
+        entry.studentNumber === receiptStudentNumber && referenceReplayKey(entry.ref) === replayKey
+      );
+      if (alreadyVerified) {
+        if (!existing) throw new LedgerUnavailableError();
+        const membership = withCurrentStanding(existing, nowMs);
+        return {
+          success: true,
+          receipt,
+          identity: { studentNumber: receiptStudentNumber, fullName: receipt.studentName?.trim() ?? '' },
+          membership,
+          membershipExpiryDate: membership.expiryDate,
+        };
+      }
 
       // 6. Entitlement, computed here and nowhere else. Extend from the later of
       //    the current expiry and the payment date, so renewing early adds to

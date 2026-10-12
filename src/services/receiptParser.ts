@@ -4,8 +4,8 @@
  * Android, Vision on iOS).
  *
  * Nothing here is simulated. When text cannot be recognised, or the receipt's
- * reference cannot be found, this throws: the reference is the key that stops
- * a receipt being redeemed twice, so a scan without one must not proceed.
+ * reference cannot be found, this throws: the reference identifies the payment
+ * for verification, so a scan without one must not proceed.
  */
 import { requireOptionalNativeModule } from 'expo';
 import type { OcrResult } from 'expo-ocr-kit';
@@ -104,7 +104,8 @@ async function focusOnPaper(uri: string): Promise<string> {
     if (originalWidth < 32 || originalHeight < 32) return uri;
 
     context = ImageManipulator.manipulate(uri);
-    context.resize({ width: 480 });
+    // Bound the long edge, including very tall screenshots.
+    context.resize(originalWidth >= originalHeight ? { width: 800 } : { height: 800 });
     image = await context.renderAsync();
     const preview = await image.saveAsync({
       compress: 0.6,
@@ -120,7 +121,7 @@ async function focusOnPaper(uri: string): Promise<string> {
     const decoded = decodeJpeg(base64ToBytes(preview.base64), {
       useTArray: true,
       formatAsRGBA: true,
-      maxResolutionInMP: 2,
+      maxResolutionInMP: 1,
     });
     const frame = findPaperFrame(decoded.data, decoded.width, decoded.height);
     if (!frame) return uri;

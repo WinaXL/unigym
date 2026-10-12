@@ -49,6 +49,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "test": "node scripts/check-regressions.cjs",
     "eas-build-post-install": "node -e \"require('fs').rmSync('node_modules/expo-ocr-kit/android/build',{recursive:true,force:true})\""
   },
   "private": true

@@ -1,8 +1,8 @@
 // app/+not-found.tsx
 import { Link, Stack } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
-import { useThemeColors } from '../src/hooks/useThemeColors';
-import { Typography, Spacing } from '../src/theme';
+import { useThemeColors } from '../hooks/useThemeColors';
+import { Typography, Spacing } from '../theme';
 
 export default function NotFoundScreen() {
   const colors = useThemeColors();

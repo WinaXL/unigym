@@ -92,7 +92,7 @@
     "errorNoName": "Could not detect the student name on the receipt",
     "errorNoStudentNumber": "Could not detect the student number on the receipt",
     "errorInvalidStudentNumber": "Student Number must be 6–12 digits (e.g. 23141035)",
-    "errorInvalidReference": "The receipt reference number could not be read clearly. Please rescan.",
+    "errorInvalidReference": "Could not read the receipt reference. Crop to the receipt with all edges visible, then upload the original screenshot or a sharp photo.",
     "errorLedgerUnavailable": "Verification is temporarily unavailable, so this receipt was not activated. Please try again.",
     "errorNotReady": "Still loading your profile — please try again in a moment.",
     "errorInProgress": "A receipt is already being verified.",
@@ -163,7 +163,8 @@
     "home": "Home",
     "scan": "Scan",
     "history": "History",
-    "profile": "Profile"
+    "profile": "Profile",
+    "workouts": "Workouts"
   },
   "membership": {
     "statusActive": "Active",
@@ -172,5 +173,114 @@
     "statusPending": "Pending",
     "validFrom": "Valid from {{date}}",
     "expiresLabel": "Expires"
+  },
+  "workouts": {
+    "title": "Workouts",
+    "choosePlan": "Choose your program",
+    "chooseDays": "Choose {{count}} training days",
+    "daysPerWeek": "{{count}} days per week",
+    "sundayClosed": "Monday–Saturday only. The university gym is closed on Sunday.",
+    "planPreview": "Your routine",
+    "dayNumber": "Day {{count}}",
+    "startPlan": "Save program & days",
+    "changePlan": "Change",
+    "changeTomorrow": "Changes start tomorrow. Today’s routine and your streak history stay saved.",
+    "pendingPlan": "New schedule starts {{date}}.",
+    "thisWeek": "This week",
+    "today": "Today",
+    "restDay": "Rest day",
+    "minutes": "{{count}} min",
+    "setsReps": "{{sets}} sets × {{reps}}",
+    "progress": "{{checked}} / {{total}} exercises completed",
+    "completeWorkout": "Complete workout",
+    "completeHint": "Check in at the gym and check every exercise, then complete today’s workout to earn your streak.",
+    "readOnly": "You can check exercises on the scheduled day.",
+    "saveError": "Could not save. Please try again.",
+    "streak": "{{count}} workout streak",
+    "streakHint": "Complete your scheduled gym days to keep the fire going.",
+    "streakWarning": "You missed a scheduled day. Don’t miss the next one or your streak will reset.",
+    "streakReset": "Two scheduled days missed. Complete your next workout to start a new streak.",
+    "trainingHint": "Use a comfortable load and controlled movement. Bike intervals: alternate 1 minute brisk and 1 minute easy.",
+    "weekdays": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    },
+    "status": {
+      "completed": "Done",
+      "missed": "Missed",
+      "scheduled": "Planned",
+      "today": "Today",
+      "rest": "Rest"
+    },
+    "focus": {
+      "fullBodyCardio": "Full body & cardio",
+      "legsCore": "Legs & core",
+      "circuit": "Full body circuit",
+      "steadyState": "Steady cardio",
+      "intervals": "Cardio intervals",
+      "endurance": "Endurance",
+      "upperPush": "Upper body · chest, shoulders, triceps",
+      "lowerQuads": "Lower body · quads, calves, core",
+      "upperPull": "Upper body · back, rear shoulders, biceps",
+      "lowerPosterior": "Lower body · hamstrings, glutes, core",
+      "fullBodyA": "Full body A · squat, push, pull, core",
+      "fullBodyB": "Full body B · hinge, shoulders, back, legs",
+      "fullBodyC": "Full body C · legs, chest, back, core"
+    },
+    "exercises": {
+      "warmup": "Easy cardio warm-up",
+      "cooldown": "Easy walk & stretching",
+      "gobletSquat": "Goblet squat",
+      "chestPress": "Machine chest press",
+      "seatedRow": "Seated cable row",
+      "inclineWalk": "Incline treadmill walk",
+      "legPress": "Leg press",
+      "romanianDeadlift": "Dumbbell Romanian deadlift",
+      "stepUp": "Step-up",
+      "deadBug": "Dead bug",
+      "bike": "Stationary bike",
+      "bodyweightSquat": "Bodyweight squat",
+      "inclinePushup": "Incline push-up",
+      "latPulldown": "Lat pulldown",
+      "plank": "Plank",
+      "elliptical": "Elliptical trainer",
+      "briskWalk": "Brisk treadmill walk",
+      "bikeIntervals": "Bike intervals · 1 min brisk / 1 min easy",
+      "easyWalk": "Easy treadmill walk",
+      "shoulderPress": "Dumbbell shoulder press",
+      "inclineDumbbellPress": "Incline dumbbell press",
+      "lateralRaise": "Dumbbell lateral raise",
+      "tricepsPushdown": "Triceps cable pushdown",
+      "legExtension": "Leg extension",
+      "calfRaise": "Calf raise",
+      "facePull": "Cable face pull",
+      "bicepsCurl": "Dumbbell biceps curl",
+      "hammerCurl": "Hammer curl",
+      "hipThrust": "Hip thrust",
+      "legCurl": "Leg curl"
+    },
+    "plans": {
+      "fatLoss": {
+        "name": "Fat loss / Weight loss",
+        "description": "3 days of resistance training and moderate cardio."
+      },
+      "cardio": {
+        "name": "Cardio",
+        "description": "3 days of steady effort, intervals and endurance."
+      },
+      "bodySplit": {
+        "name": "Strength · Body split",
+        "description": "4 days: upper push, legs, upper pull, posterior chain."
+      },
+      "fullBody": {
+        "name": "Strength · Full body",
+        "description": "3 balanced sessions for all major muscle groups."
+      }
+    }
   }
 }

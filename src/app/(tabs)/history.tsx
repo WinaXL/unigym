@@ -11,17 +11,17 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
-import { SafeScreen } from '../../src/components/ui/SafeScreen';
-import { Button } from '../../src/components/ui/Button';
-import { AttendanceItem } from '../../src/components/history/AttendanceItem';
-import { useThemeColors } from '../../src/hooks/useThemeColors';
-import { useAuthStore } from '../../src/stores/authStore';
-import { useSessionStore } from '../../src/stores/sessionStore';
-import { useHistoryStore } from '../../src/stores/historyStore';
-import { hapticService } from '../../src/services/hapticService';
-import { Typography, Spacing, BorderRadius } from '../../src/theme';
-import { formatDateGroup, formatTime } from '../../src/utils/dateUtils';
-import type { AttendanceRecord } from '../../src/types/attendance';
+import { SafeScreen } from '../../components/ui/SafeScreen';
+import { Button } from '../../components/ui/Button';
+import { AttendanceItem } from '../../components/history/AttendanceItem';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { useAuthStore } from '../../stores/authStore';
+import { useSessionStore } from '../../stores/sessionStore';
+import { useHistoryStore } from '../../stores/historyStore';
+import { hapticService } from '../../services/hapticService';
+import { Typography, Spacing, BorderRadius } from '../../theme';
+import { formatDateGroup, formatTime } from '../../utils/dateUtils';
+import type { AttendanceRecord } from '../../types/attendance';
 
 /**
  * `key` is the raw YYYY-MM-DD date and `label` is the translated heading.

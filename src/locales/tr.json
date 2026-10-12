@@ -92,7 +92,7 @@
     "errorNoName": "Makbuzdaki öğrenci adı algılanamadı",
     "errorNoStudentNumber": "Makbuzdaki öğrenci numarası algılanamadı",
     "errorInvalidStudentNumber": "Öğrenci numarası 6–12 haneli olmalıdır (örn. 23141035)",
-    "errorInvalidReference": "Makbuz referans numarası net okunamadı. Lütfen yeniden tarayın.",
+    "errorInvalidReference": "Makbuz referansı okunamadı. Tüm kenarları görünür tutarak makbuza göre kırpın, ardından orijinal ekran görüntüsünü veya net bir fotoğrafı yükleyin.",
     "errorLedgerUnavailable": "Doğrulama geçici olarak kullanılamıyor, bu makbuz etkinleştirilmedi. Lütfen tekrar deneyin.",
     "errorNotReady": "Profiliniz hâlâ yükleniyor — lütfen birazdan tekrar deneyin.",
     "errorInProgress": "Bir makbuz hâlihazırda doğrulanıyor.",
@@ -163,7 +163,8 @@
     "home": "Ana Sayfa",
     "scan": "Ödeme",
     "history": "Geçmiş",
-    "profile": "Profil"
+    "profile": "Profil",
+    "workouts": "Antrenmanlar"
   },
   "membership": {
     "statusActive": "Aktif",
@@ -172,5 +173,114 @@
     "statusPending": "Beklemede",
     "validFrom": "{{date}} tarihinden itibaren geçerli",
     "expiresLabel": "Bitiş tarihi"
+  },
+  "workouts": {
+    "title": "Antrenmanlar",
+    "choosePlan": "Programınızı seçin",
+    "chooseDays": "{{count}} antrenman günü seçin",
+    "daysPerWeek": "Haftada {{count}} gün",
+    "sundayClosed": "Pazartesi–Cumartesi. Üniversite spor salonu pazar günü kapalıdır.",
+    "planPreview": "Antrenman düzeniniz",
+    "dayNumber": "{{count}}. gün",
+    "startPlan": "Programı ve günleri kaydet",
+    "changePlan": "Değiştir",
+    "changeTomorrow": "Değişiklikler yarın başlar. Bugünkü antrenman ve seri geçmişi korunur.",
+    "pendingPlan": "Yeni program {{date}} tarihinde başlar.",
+    "thisWeek": "Bu hafta",
+    "today": "Bugün",
+    "restDay": "Dinlenme günü",
+    "minutes": "{{count}} dk",
+    "setsReps": "{{sets}} set × {{reps}}",
+    "progress": "{{checked}} / {{total}} egzersiz tamamlandı",
+    "completeWorkout": "Antrenmanı tamamla",
+    "completeHint": "Salona giriş yapın ve tüm egzersizleri işaretleyin. Seriye eklemek için bugünkü antrenmanı tamamlayın.",
+    "readOnly": "Egzersizleri planlanan gün işaretleyebilirsiniz.",
+    "saveError": "Kaydedilemedi. Lütfen tekrar deneyin.",
+    "streak": "{{count}} antrenman serisi",
+    "streakHint": "Ateşi canlı tutmak için planlanan günlerde antrenmanınızı tamamlayın.",
+    "streakWarning": "Planlanan bir günü kaçırdınız. Sonraki günü de kaçırırsanız seri sıfırlanır.",
+    "streakReset": "Üst üste iki antrenman günü kaçırıldı. Yeni bir seri için sonraki antrenmanı tamamlayın.",
+    "trainingHint": "Rahat bir ağırlıkla kontrollü hareket edin. Bisiklet aralıkları: 1 dakika hızlı, 1 dakika hafif tempo.",
+    "weekdays": {
+      "0": "Pazar",
+      "1": "Pazartesi",
+      "2": "Salı",
+      "3": "Çarşamba",
+      "4": "Perşembe",
+      "5": "Cuma",
+      "6": "Cumartesi"
+    },
+    "status": {
+      "completed": "Bitti",
+      "missed": "Kaçırıldı",
+      "scheduled": "Planlandı",
+      "today": "Bugün",
+      "rest": "Dinlenme"
+    },
+    "focus": {
+      "fullBodyCardio": "Tüm vücut ve kardiyo",
+      "legsCore": "Bacaklar ve merkez bölge",
+      "circuit": "Tüm vücut devre antrenmanı",
+      "steadyState": "Sabit tempolu kardiyo",
+      "intervals": "Aralıklı kardiyo",
+      "endurance": "Dayanıklılık",
+      "upperPush": "Üst vücut · göğüs, omuz, triseps",
+      "lowerQuads": "Alt vücut · ön bacak, baldır, merkez",
+      "upperPull": "Üst vücut · sırt, arka omuz, biseps",
+      "lowerPosterior": "Alt vücut · arka bacak, kalça, merkez",
+      "fullBodyA": "Tüm vücut A · squat, itiş, çekiş, merkez",
+      "fullBodyB": "Tüm vücut B · kalça menteşesi, omuz, sırt, bacak",
+      "fullBodyC": "Tüm vücut C · bacak, göğüs, sırt, merkez"
+    },
+    "exercises": {
+      "warmup": "Hafif kardiyo ısınması",
+      "cooldown": "Hafif yürüyüş ve esneme",
+      "gobletSquat": "Goblet squat",
+      "chestPress": "Makinede göğüs press",
+      "seatedRow": "Oturarak kablo çekiş",
+      "inclineWalk": "Eğimli koşu bandında yürüyüş",
+      "legPress": "Leg press",
+      "romanianDeadlift": "Dambılla Romen deadlift",
+      "stepUp": "Platforma çıkış",
+      "deadBug": "Dead bug",
+      "bike": "Sabit bisiklet",
+      "bodyweightSquat": "Vücut ağırlığıyla squat",
+      "inclinePushup": "Yükseltide şınav",
+      "latPulldown": "Üst blok çekiş",
+      "plank": "Plank",
+      "elliptical": "Eliptik bisiklet",
+      "briskWalk": "Koşu bandında tempolu yürüyüş",
+      "bikeIntervals": "Bisiklet · 1 dk hızlı / 1 dk hafif",
+      "easyWalk": "Koşu bandında hafif yürüyüş",
+      "shoulderPress": "Dambıl omuz press",
+      "inclineDumbbellPress": "Eğimli sehpada dambıl press",
+      "lateralRaise": "Dambıl yana açış",
+      "tricepsPushdown": "Kabloda triseps itiş",
+      "legExtension": "Bacak açış",
+      "calfRaise": "Baldır yükselişi",
+      "facePull": "Kabloyu yüze çekiş",
+      "bicepsCurl": "Dambıl biseps curl",
+      "hammerCurl": "Hammer curl",
+      "hipThrust": "Kalça itiş",
+      "legCurl": "Bacak büküş"
+    },
+    "plans": {
+      "fatLoss": {
+        "name": "Yağ kaybı / Kilo verme",
+        "description": "3 gün direnç antrenmanı ve orta tempolu kardiyo."
+      },
+      "cardio": {
+        "name": "Kardiyo",
+        "description": "3 gün sabit tempo, aralıklar ve dayanıklılık."
+      },
+      "bodySplit": {
+        "name": "Kuvvet · Bölgesel",
+        "description": "4 gün: üst itiş, bacak, üst çekiş, arka kas grubu."
+      },
+      "fullBody": {
+        "name": "Kuvvet · Tüm vücut",
+        "description": "Ana kas grupları için 3 dengeli antrenman."
+      }
+    }
   }
 }

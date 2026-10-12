@@ -77,6 +77,8 @@ export function Button({
 
   return (
     <TouchableOpacity
+      accessibilityRole="button"
+      aria-disabled={disabled || loading}
       style={[containerStyle, style]}
       onPress={handlePress}
       disabled={disabled || loading}

@@ -1,89 +1,54 @@
-// src/services/paperFrame.ts
-/**
- * Finds the pale paper rectangle inside a photo.
- *
- * Gallery shots of a receipt on a monitor are mostly black, with the slip as a
- * small bright band. OCR then sees tiny type and misses the reference. A photo
- * where the paper already fills the frame returns null so we leave those
- * pixels alone.
- */
+/** Find the largest connected pale paper region, excluding screen chrome. */
+export interface PaperFrame { x: number; y: number; width: number; height: number }
 
-export interface PaperFrame {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-const PAPER_LUMA = 150;
-const SAMPLE = 2;
-
-function firstHit(counts: Uint32Array, need: number): number {
-  for (let i = 0; i < counts.length; i++) {
-    if (counts[i] >= need) return i;
-  }
-  return -1;
-}
-
-function lastHit(counts: Uint32Array, need: number): number {
-  for (let i = counts.length - 1; i >= 0; i--) {
-    if (counts[i] >= need) return i;
-  }
-  return -1;
-}
-
-/**
- * @param rgba RGBA bytes, row-major, 4 bytes per pixel.
- */
-export function findPaperFrame(
-  rgba: Uint8Array,
-  width: number,
-  height: number
-): PaperFrame | null {
-  if (width < 16 || height < 16) return null;
-  if (rgba.length < width * height * 4) return null;
-
-  const rowHits = new Uint32Array(height);
-  const colHits = new Uint32Array(width);
-  let samplesPerRow = 0;
-
-  for (let y = 0; y < height; y += SAMPLE) {
-    samplesPerRow = 0;
-    for (let x = 0; x < width; x += SAMPLE) {
-      samplesPerRow++;
-      const i = (y * width + x) * 4;
-      // Integer luma. Paper is near white; a monitor bezel and letterbox are not.
+export function findPaperFrame(rgba: Uint8Array, width: number, height: number): PaperFrame | null {
+  if (width < 16 || height < 16 || rgba.length < width * height * 4) return null;
+  const sample = 2;
+  const cols = Math.ceil(width / sample);
+  const rows = Math.ceil(height / sample);
+  const bright = new Uint8Array(cols * rows);
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const i = (y * sample * width + x * sample) * 4;
       const luma = (rgba[i] * 54 + rgba[i + 1] * 183 + rgba[i + 2] * 19) >> 8;
-      if (luma >= PAPER_LUMA) {
-        rowHits[y]++;
-        colHits[x]++;
-      }
+      const spread = Math.max(rgba[i], rgba[i + 1], rgba[i + 2]) - Math.min(rgba[i], rgba[i + 1], rgba[i + 2]);
+      bright[y * cols + x] = luma >= 140 && spread < 65 ? 1 : 0;
     }
   }
-
-  let samplesPerCol = 0;
-  for (let y = 0; y < height; y += SAMPLE) samplesPerCol++;
-
-  const rowNeed = Math.max(3, Math.floor(samplesPerRow * 0.2));
-  const colNeed = Math.max(3, Math.floor(samplesPerCol * 0.08));
-
-  const top = firstHit(rowHits, rowNeed);
-  const bottom = lastHit(rowHits, rowNeed);
-  const left = firstHit(colHits, colNeed);
-  const right = lastHit(colHits, colNeed);
-  if (top < 0 || left < 0 || bottom - top < 8 || right - left < 8) return null;
-
-  const padX = Math.round((right - left) * 0.03);
-  const padY = Math.round((bottom - top) * 0.08);
-  const x = Math.max(0, left - padX);
-  const y = Math.max(0, top - padY);
-  const maxX = Math.min(width - 1, right + padX);
-  const maxY = Math.min(height - 1, bottom + padY);
-  const frame = { x, y, width: maxX - x + 1, height: maxY - y + 1 };
-
-  const coverage = (frame.width * frame.height) / (width * height);
-  // Already fills the photo: cropping would only recompress a good scan.
-  if (coverage > 0.9) return null;
-  if (frame.width < width * 0.25 || frame.height < height * 0.06) return null;
-  return frame;
+  const queue = new Int32Array(bright.length);
+  let best: { left: number; right: number; top: number; bottom: number; area: number } | null = null;
+  for (let start = 0; start < bright.length; start++) {
+    if (!bright[start]) continue;
+    let head = 0;
+    let tail = 1;
+    queue[0] = start;
+    bright[start] = 0;
+    let left = cols, right = 0, top = rows, bottom = 0;
+    while (head < tail) {
+      const index = queue[head++];
+      const x = index % cols;
+      const y = Math.floor(index / cols);
+      left = Math.min(left, x); right = Math.max(right, x);
+      top = Math.min(top, y); bottom = Math.max(bottom, y);
+      const neighbours = [x > 0 ? index - 1 : -1, x < cols - 1 ? index + 1 : -1,
+        y > 0 ? index - cols : -1, y < rows - 1 ? index + cols : -1];
+      for (const next of neighbours) {
+        if (next >= 0 && bright[next]) { bright[next] = 0; queue[tail++] = next; }
+      }
+    }
+    const boxArea = (right - left + 1) * (bottom - top + 1);
+    // Relative-to-image-height thresholds used to reject short receipt bands.
+    if ((right - left + 1) * sample < width * 0.25 || (bottom - top + 1) * sample < 16 ||
+        tail / boxArea < 0.45) continue;
+    if (!best || tail > best.area) best = { left, right, top, bottom, area: tail };
+  }
+  if (!best) return null;
+  const padX = Math.max(4, Math.round((best.right - best.left) * sample * 0.025));
+  const padY = Math.max(4, Math.round((best.bottom - best.top) * sample * 0.05));
+  const x = Math.max(0, best.left * sample - padX);
+  const y = Math.max(0, best.top * sample - padY);
+  const right = Math.min(width, (best.right + 1) * sample + padX);
+  const bottom = Math.min(height, (best.bottom + 1) * sample + padY);
+  const frame = { x, y, width: right - x, height: bottom - y };
+  return frame.width * frame.height / (width * height) > 0.9 ? null : frame;
 }
