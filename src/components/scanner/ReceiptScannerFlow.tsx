@@ -29,7 +29,6 @@ import { useApiAdapter } from '../../services/ApiProvider';
 import { membershipService } from '../../services/membershipService';
 import {
   parseReceiptImage,
-  ReceiptScanError,
   type ReceiptScanErrorCode,
 } from '../../services/receiptParser';
 import { hapticService } from '../../services/hapticService';
@@ -41,6 +40,7 @@ import {
   STUDENT_NUMBER_MAX_LENGTH,
 } from '../../utils/studentNumber';
 import type { ReceiptData, ReceiptRejectionCode } from '../../types/api';
+import { canonicalReferenceId } from '../../utils/referenceId';
 
 type Step = 'idle' | 'camera' | 'processing' | 'verify_modal';
 
@@ -68,12 +68,12 @@ const REJECTION_MESSAGE_KEYS: Record<ReceiptRejectionCode, string> = {
   GENERIC: 'scan.errorGeneric',
 };
 
-/** Maps a failed on-device scan onto a user-facing message. */
+/** Maps an automatic scan issue onto a non-blocking notice in the review form. */
 const SCAN_ERROR_MESSAGE_KEYS: Record<ReceiptScanErrorCode, string> = {
-  OCR_UNAVAILABLE: 'scan.errorOcrUnavailable',
-  UNREADABLE_IMAGE: 'scan.errorOcrUnreadable',
-  NO_TEXT: 'scan.errorOcrNoText',
-  NO_REFERENCE: 'scan.errorInvalidReference',
+  OCR_UNAVAILABLE: 'scan.reviewOcrUnavailable',
+  UNREADABLE_IMAGE: 'scan.reviewUnreadable',
+  NO_TEXT: 'scan.reviewNoText',
+  NO_REFERENCE: 'scan.reviewNoReference',
 };
 
 export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
@@ -91,6 +91,7 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
   const [studentNumber, setStudentNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [referenceId, setReferenceId] = useState('');
+  const [scanIssue, setScanIssue] = useState<ReceiptScanErrorCode | null>(null);
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -134,6 +135,11 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
   async function processImageUri(uri: string) {
     if (!mountedRef.current) return;
     setStep('processing');
+    setScanIssue(null);
+    setStudentName('');
+    setStudentNumber('');
+    setPaymentDate('');
+    setReferenceId('');
 
     try {
       const parsed = await parseReceiptImage(uri, {
@@ -143,19 +149,18 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
       // The parse takes a moment; the sheet may have been dismissed since.
       if (!mountedRef.current) return;
 
-      setStudentName(parsed.studentName ?? '');
-      setStudentNumber(digitsOnly(parsed.studentNumber ?? ''));
-      setPaymentDate(parsed.paymentDate ?? '');
-      setReferenceId(parsed.referenceId ?? '');
+      setStudentName(parsed.receipt.studentName ?? '');
+      setStudentNumber(digitsOnly(parsed.receipt.studentNumber ?? ''));
+      setPaymentDate(parsed.receipt.paymentDate ?? '');
+      setReferenceId(parsed.receipt.referenceId ?? '');
+      setScanIssue(parsed.issue);
       setStep('verify_modal');
-    } catch (error) {
+    } catch {
       if (!mountedRef.current) return;
-      setStep('idle');
-      failWith(
-        error instanceof ReceiptScanError
-          ? SCAN_ERROR_MESSAGE_KEYS[error.code]
-          : 'scan.errorGeneric'
-      );
+      // Even an unexpected native or image-processing failure must leave a
+      // useful review form rather than force the student to scan in a loop.
+      setScanIssue('UNREADABLE_IMAGE');
+      setStep('verify_modal');
     }
   }
 
@@ -253,7 +258,8 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
       failWith('scan.errorNoDate');
       return;
     }
-    if (!referenceId.trim()) {
+    const referenceValue = canonicalReferenceId(referenceId);
+    if (!referenceValue) {
       failWith('scan.errorInvalidReference');
       return;
     }
@@ -264,7 +270,7 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
         studentName: studentName.trim(),
         studentNumber: studentNumber.trim(),
         paymentDate: paymentDateValue,
-        referenceId: referenceId.trim(),
+        referenceId: referenceValue,
       };
 
       // The adapter decides. Identity binding and cache writes happen inside the
@@ -431,6 +437,13 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
                 </Text>
               </View>
 
+              {scanIssue ? (
+                <View accessibilityRole="alert" style={[styles.reviewNotice, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>{t('scan.reviewManuallyTitle')}</Text>
+                  <Text style={{ color: colors.textPrimary }}>{t(SCAN_ERROR_MESSAGE_KEYS[scanIssue])}</Text>
+                </View>
+              ) : null}
+
               <Card style={{ gap: Spacing[3], marginBottom: Spacing[4] }}>
                 {/* Student Full Name */}
                 <View style={styles.inputGroup}>
@@ -438,6 +451,7 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
                     {t('scan.studentName')}
                   </Text>
                   <TextInput
+                    accessibilityLabel={t('scan.studentName')}
                     style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
                     value={studentName}
                     onChangeText={setStudentName}
@@ -452,6 +466,7 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
                     {t('scan.studentNumber')}
                   </Text>
                   <TextInput
+                    accessibilityLabel={t('scan.studentNumber')}
                     style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
                     value={studentNumber}
                     onChangeText={(text) => setStudentNumber(digitsOnly(text))}
@@ -469,6 +484,7 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
                     {t('scan.paymentDate')}
                   </Text>
                   <TextInput
+                    accessibilityLabel={t('scan.paymentDate')}
                     style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
                     value={paymentDate}
                     onChangeText={(text) => setPaymentDate(maskPaymentDateInput(text))}
@@ -483,27 +499,28 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
                   />
                 </View>
 
-                {/* Reference ID — read-only.
-                    This is the anti-replay key: if the user can retype it, the
-                    same physical receipt can be redeemed indefinitely under a
-                    fresh reference. It is shown for transparency only. */}
+                {/* Reference is editable; the adapter still validates the submission. */}
                 <View style={styles.inputGroup}>
                   <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
                     {t('scan.referenceId')}
                   </Text>
-                  <View
-                    style={[
-                      styles.readOnlyField,
-                      { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
-                    ]}
-                  >
-                    <Text style={[styles.readOnlyValue, { color: colors.textPrimary }]}>
-                      {referenceId || '—'}
-                    </Text>
-                    <Ionicons name="lock-closed" size={14} color={colors.textTertiary} />
-                  </View>
+                  <TextInput
+                    accessibilityLabel={t('scan.referenceId')}
+                    style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
+                    value={referenceId}
+                    onChangeText={setReferenceId}
+                    placeholder="07.10.2026/1234/1/1"
+                    placeholderTextColor={colors.textTertiary}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    maxLength={64}
+                    editable={!loading}
+                    onFocus={() => {
+                      setTimeout(() => sheetScrollRef.current?.scrollToEnd({ animated: true }), 50);
+                    }}
+                  />
                   <Text style={[styles.inputHint, { color: colors.textTertiary }]}>
-                    {t('scan.referenceIdLocked')}
+                    {t('scan.referenceIdHint')}
                   </Text>
                 </View>
 
@@ -556,6 +573,12 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
 }
 
 const styles = StyleSheet.create({
+  reviewNotice: {
+    padding: Spacing[4],
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing[4],
+    gap: Spacing[2],
+  },
   container: {
     width: '100%',
   },
@@ -732,21 +755,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing[2],
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.medium,
-  },
-  readOnlyField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing[2],
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing[3],
-    paddingVertical: Spacing[3],
-  },
-  readOnlyValue: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.bold,
-    letterSpacing: 0.5,
   },
   // Celebration
   celebrationOverlay: {

@@ -252,8 +252,8 @@ function confusionDistance(read: string, actual: string): number | null {
 }
 
 /**
- * Turn an 8-digit day-month-year, possibly misread, into a real payment date
- * inside the freshness window. The reading with the fewest changed digits wins.
+ * Preserve any clearly read calendar date. Only repair impossible dates using
+ * the recent window; receipt eligibility belongs exclusively to the adapter.
  */
 function recoverDayFirstDigits(
   digits: string,
@@ -261,7 +261,11 @@ function recoverDayFirstDigits(
 ): { iso: string; changes: number } | null {
   if (!/^\d{8}$/.test(digits)) return null;
 
+  const exact = toIsoDate(Number(digits.slice(4)), Number(digits.slice(2, 4)), Number(digits.slice(0, 2)));
+  if (exact) return { iso: exact, changes: 0 };
+
   let best: { iso: string; changes: number } | null = null;
+  let ambiguous = false;
   const alts = digits.split('').map((digit) => DIGIT_ALTS[digit] ?? [digit]);
 
   function visit(pos: number, built: string, changes: number) {
@@ -275,8 +279,11 @@ function recoverDayFirstDigits(
       );
       if (!iso || iso > today) return;
       if (calendarDaysBefore(today, iso) > MAX_RECEIPT_AGE_DAYS) return;
-      if (!best || changes < best.changes || (changes === best.changes && iso > best.iso)) {
+      if (!best || changes < best.changes) {
         best = { iso, changes };
+        ambiguous = false;
+      } else if (changes === best.changes && iso !== best.iso) {
+        ambiguous = true;
       }
       return;
     }
@@ -289,12 +296,16 @@ function recoverDayFirstDigits(
   }
 
   visit(0, '', 0);
-  return best;
+  return ambiguous ? null : best;
 }
 
 /** Day-first dates on a row, repaired when OCR damaged the digits. */
 function recoveredDatesIn(row: string, today: string): { iso: string; changes: number }[] {
   const found: { iso: string; changes: number }[] = [];
+  for (const match of row.matchAll(/(?:^|\D)(\d{4})-(\d{2})-(\d{2})(?!\d)/g)) {
+    const iso = toIsoDate(Number(match[1]), Number(match[2]), Number(match[3]));
+    if (iso) found.push({ iso, changes: 0 });
+  }
   const shape = /(?:^|\D)(\d{2})[./-](\d{2})[./-](\d{4})(?!\d)/g;
   for (const match of row.matchAll(shape)) {
     const recovered = recoverDayFirstDigits(match[1] + match[2] + match[3], today);
@@ -324,7 +335,7 @@ function datesBesideLabel(
   return found;
 }
 
-/** Fewest OCR corrections, then the latest date still inside the window. */
+/** Prefer the clearest reading when several date rows are available. */
 function bestRecovered(dates: { iso: string; changes: number }[]): string | undefined {
   if (dates.length === 0) return undefined;
   return dates.reduce((best, date) =>
@@ -406,12 +417,15 @@ function bestBankReference(
 
   let best: { id: string; changes: number } | null = null;
   for (const match of bankReferenceMatches(rows)) {
-    let changes: number | null = null;
-    let iso = paymentDate ?? null;
+    let iso = toIsoDate(Number(match.prefix.slice(4)), Number(match.prefix.slice(2, 4)), Number(match.prefix.slice(0, 2)));
+    let changes: number | null = iso ? 0 : null;
 
-    if (target) {
+    if (changes === null && target) {
       const distance = confusionDistance(match.prefix, target);
-      if (distance !== null && distance <= MAX_DIGIT_CORRECTIONS) changes = distance;
+      if (distance !== null && distance <= MAX_DIGIT_CORRECTIONS) {
+        changes = distance;
+        iso = paymentDate!;
+      }
     }
     if (changes === null) {
       const recovered = recoverDayFirstDigits(match.prefix, today);

@@ -3,9 +3,8 @@
  * Receipt field extraction backed by on-device OCR (expo-ocr-kit: ML Kit on
  * Android, Vision on iOS).
  *
- * Nothing here is simulated. When text cannot be recognised, or the receipt's
- * reference cannot be found, this throws: the reference identifies the payment
- * for verification, so a scan without one must not proceed.
+ * Nothing here is simulated. Recognition is a best-effort aid to the editable
+ * review form; adapter validation still decides whether the payment qualifies.
  */
 import { requireOptionalNativeModule } from 'expo';
 import type { OcrResult } from 'expo-ocr-kit';
@@ -28,11 +27,15 @@ export type ReceiptScanErrorCode =
   /** Text was found but no receipt reference could be identified in it. */
   | 'NO_REFERENCE';
 
-export class ReceiptScanError extends Error {
-  constructor(readonly code: ReceiptScanErrorCode, options?: { cause?: unknown }) {
-    super(`Receipt scan failed: ${code}`, options);
-    this.name = 'ReceiptScanError';
-  }
+export interface ReceiptScanResult {
+  receipt: ReceiptData;
+  issue: ReceiptScanErrorCode | null;
+  diagnostics: {
+    nativeAvailable: boolean;
+    attemptedPasses: number;
+    failedPasses: number;
+    recognizedCharacters: number;
+  };
 }
 
 interface OcrNativeModule {
@@ -45,7 +48,7 @@ interface OcrNativeModule {
  */
 const ocrModule = requireOptionalNativeModule<OcrNativeModule>('ExpoOcrKit');
 
-export const OCR_AVAILABLE = ocrModule !== null;
+export const OCR_AVAILABLE = typeof ocrModule?.recognizeText === 'function';
 
 /** Full page plus a column pass, after an optional crop. */
 const OCR_TIMEOUT_MS = 35_000;
@@ -200,32 +203,41 @@ function blocksOf(result: OcrResult | null): OcrTextBlock[] {
  *
  * Name, student number and date may come back undefined when they cannot be
  * read with confidence; the student fills those in and the adapter validates
- * them. The reference is always present on success.
+ * them. A missing reference or OCR engine is returned as a review notice,
+ * preserving all fields that were read so the user can complete them manually.
  *
  * @param hints Identity already bound to this device. Used only to recognise
  *   those values in the text — never to fill a field the image does not show.
- * @throws ReceiptScanError
  */
 export async function parseReceiptImage(
   imageUri: string,
   hints: ReceiptHints = {}
-): Promise<ReceiptData> {
-  if (!ocrModule) throw new ReceiptScanError('OCR_UNAVAILABLE');
+): Promise<ReceiptScanResult> {
+  const diagnostics: ReceiptScanResult['diagnostics'] = {
+    nativeAvailable: OCR_AVAILABLE, attemptedPasses: 0, failedPasses: 0, recognizedCharacters: 0,
+  };
+  const finish = (receipt: ReceiptData, issue: ReceiptScanErrorCode | null): ReceiptScanResult => {
+    // Counts and status only: never log receipt text, names, reference IDs or URIs.
+    console.info('[ReceiptOCR]', JSON.stringify({ ...diagnostics, issue }));
+    return { receipt, issue, diagnostics };
+  };
+  if (!ocrModule || !OCR_AVAILABLE) return finish({}, 'OCR_UNAVAILABLE');
 
   const sourceUri = await focusOnPaper(imageUri);
 
   const deadline = Date.now() + OCR_TIMEOUT_MS;
   const recognize = (uri: string) => {
+    diagnostics.attemptedPasses++;
     const remaining = deadline - Date.now();
     if (remaining < 1_000) return Promise.reject(new Error('OCR timed out'));
     return withTimeout(ocrModule.recognizeText(uri), remaining);
   };
 
-  let full: OcrResult;
+  let full: OcrResult | null = null;
   try {
     full = await recognize(sourceUri);
-  } catch (error) {
-    throw new ReceiptScanError('UNREADABLE_IMAGE', { cause: error });
+  } catch {
+    diagnostics.failedPasses++;
   }
 
   const columnUri = await cropReferenceColumn(sourceUri);
@@ -234,7 +246,7 @@ export async function parseReceiptImage(
     try {
       column = await recognize(columnUri);
     } catch {
-      column = null;
+      diagnostics.failedPasses++;
     }
   }
 
@@ -251,15 +263,14 @@ export async function parseReceiptImage(
     });
   }
 
-  const text = [columnText, full.text].filter((part) => part && part.trim()).join('\n');
-  if (!text.trim()) throw new ReceiptScanError('NO_TEXT');
+  const text = [columnText, full?.text].filter((part) => typeof part === 'string' && part.trim()).join('\n');
+  diagnostics.recognizedCharacters = text.length;
+  if (!text.trim()) return finish({}, diagnostics.failedPasses === diagnostics.attemptedPasses ? 'UNREADABLE_IMAGE' : 'NO_TEXT');
 
   const fields = extractReceiptFields(
     { text, blocks: blocks.length > 0 ? blocks : [] },
     hints
   );
 
-  if (!fields.referenceId) throw new ReceiptScanError('NO_REFERENCE');
-
-  return fields;
+  return finish(fields, fields.referenceId ? null : 'NO_REFERENCE');
 }

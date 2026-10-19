@@ -18,7 +18,7 @@ Routes were moved from `app/` to `src/app/` to follow the repository's AGENTS.md
 
 Run `npm test`, `npx tsc --noEmit`, and `npx expo lint`. The native-free regression checks cover OCR text layouts, connected-paper detection, shared receipts and repeat verification, schedule/streak rules, persistence failure, attendance gating, student isolation, and locale coverage.
 
-Native ML Kit/Vision recognition must still be checked on Android/iOS with the original receipt images, particularly the affected phone's gallery image. The provided failure-dialog screenshot is not a receipt image and cannot verify OCR accuracy. No new native dependency was added. Installed APKs require a new build because this app has no OTA updates configured:
+See `ocr-and-branding.md` for the subsequent standalone APK audit, the date-extraction fix, editable manual review and custom icon update. Native ML Kit/Vision recognition must still be checked on Android/iOS with the original receipt images. No new native dependency was added. Installed APKs require a new build because this app has no OTA updates configured:
 
 ```powershell
 npx eas-cli@latest build --platform android --profile preview

@@ -58,6 +58,61 @@ test('Receipt references survive OCR separators, wrapping and incomplete blocks'
   assert.equal(repaired.referenceId, '07-10-2026-5333-4-13'); // Bank sequence is never guessed.
 });
 
+test('OCR extraction preserves old and future receipt dates for server validation', () => {
+  const now = new Date(2026, 9, 19, 12);
+  for (const [printed, iso] of [['07.10.2026', '2026-10-07'], ['20.10.2026', '2026-10-20']]) {
+    const result = extractReceiptFields({
+      text: `İşlem Tarihi: ${printed} 09:29:55\nReferans Numarası: ${printed}/6306/4/13\nAçıklama: 23141035 MAXAT KALIYEV`, blocks: [],
+    }, {}, now);
+    assert.equal(result.paymentDate, iso);
+    assert.equal(result.referenceId, `${printed.replaceAll('.', '-')}-6306-4-13`);
+  }
+});
+
+test('Native scan failures return an editable review with partial fields and distinct diagnostics', async () => {
+  const originalLoad = Module._load;
+  let native = null;
+  Module._load = function (request, parent, isMain) {
+    if (request === 'expo') return { requireOptionalNativeModule: () => native };
+    if (request === 'expo-image-manipulator') return {
+      ImageManipulator: { manipulate: () => { throw new Error('No native image preprocessing in this test'); } },
+      SaveFormat: { JPEG: 'jpeg' },
+    };
+    return originalLoad.call(this, request, parent, isMain);
+  };
+  const parserPath = require.resolve('../src/services/receiptParser.ts');
+  const scan = async (value) => {
+    native = value === null ? null : { recognizeText: async () => {
+      if (value instanceof Error) throw value;
+      return value;
+    } };
+    delete require.cache[parserPath];
+    return require(parserPath).parseReceiptImage('file:///user-selected-receipt.jpg');
+  };
+  try {
+    const missing = await scan(null);
+    assert.equal(missing.issue, 'OCR_UNAVAILABLE');
+    assert.deepEqual(missing.receipt, {});
+    assert.equal(missing.diagnostics.nativeAvailable, false);
+    const failed = await scan(new Error('Native recognition failed'));
+    assert.equal(failed.issue, 'UNREADABLE_IMAGE');
+    assert.equal(failed.diagnostics.failedPasses, 1);
+    const empty = await scan({ text: '', blocks: [] });
+    assert.equal(empty.issue, 'NO_TEXT');
+    const partial = await scan({ text: 'Açıklama: 23141035 MAXAT KALIYEV\nİşlem Tarihi: 07.10.2026', blocks: [] });
+    assert.equal(partial.issue, 'NO_REFERENCE');
+    assert.equal(partial.receipt.studentNumber, '23141035');
+    assert.equal(partial.receipt.paymentDate, '2026-10-07');
+    assert.ok(partial.diagnostics.recognizedCharacters > 0);
+    const complete = await scan({ text: 'Referans Numarası: 07.10.2026/6306/4/13', blocks: [] });
+    assert.equal(complete.issue, null);
+    assert.equal(complete.receipt.referenceId, '07-10-2026-6306-4-13');
+  } finally {
+    Module._load = originalLoad;
+    delete require.cache[parserPath];
+  }
+});
+
 test('Paper crop ignores screen controls and detects very short receipt bands', () => {
   const width = 480, height = 1000;
   const rgba = new Uint8Array(width * height * 4);
