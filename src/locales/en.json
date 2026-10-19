@@ -79,25 +79,20 @@
     "confirmationTitle": "Verify Receipt Details",
     "confirmationSubtitle": "Check the details read from your receipt and fill in anything that is missing",
     "confirmAndActivate": "Confirm & Activate",
-    "referenceIdHint": "Copy the full reference printed on the receipt, including its date and separators. You can correct the automatic reading.",
     "reviewManuallyTitle": "Complete receipt details",
     "reviewOcrUnavailable": "Automatic scanning is unavailable in this app. Enter the receipt details below to continue.",
     "reviewUnreadable": "Automatic scanning could not read this image. Enter or confirm the receipt details below.",
     "reviewNoText": "No text was detected. Enter the receipt details below to continue.",
-    "reviewNoReference": "We could not read the reference number. Enter the full reference from the receipt and check the other details.",
     "studentNamePlaceholder": "As printed on the receipt",
     "studentNumberPlaceholder": "e.g. 23141035",
     "errorAnotherStudent": "This receipt belongs to another student",
-    "errorAlreadyUsed": "This receipt has already been used",
     "errorNameMismatch": "Name on receipt does not match your profile",
-    "errorDateExpired": "Receipt date is too old — must be within the last 7 days",
     "errorFutureDate": "Receipt date is in the future",
     "errorNoDate": "Could not detect the payment date — please align the receipt clearly",
     "errorInvalidDate": "Payment date must be in YYYY-MM-DD format",
     "errorNoName": "Could not detect the student name on the receipt",
     "errorNoStudentNumber": "Could not detect the student number on the receipt",
     "errorInvalidStudentNumber": "Student Number must be 6–12 digits (e.g. 23141035)",
-    "errorInvalidReference": "Enter the full receipt reference using letters, numbers, dots, slashes or dashes (4–32 characters).",
     "errorLedgerUnavailable": "Verification is temporarily unavailable, so this receipt was not activated. Please try again.",
     "errorNotReady": "Still loading your profile — please try again in a moment.",
     "errorInProgress": "A receipt is already being verified.",
@@ -110,11 +105,11 @@
     "studentName": "Student Name",
     "studentNumber": "Student Number",
     "paymentDate": "Payment Date (YYYY-MM-DD)",
-    "referenceId": "Reference ID",
     "verifyReceipt": "Verify & Activate",
     "retake": "Retake / Re-upload",
     "errorOcrUnreadable": "This image could not be read. Try again with a sharper, well-lit photo.",
-    "errorOcrNoText": "No text was found in this image. Make sure the whole receipt is in frame and in focus."
+    "errorOcrNoText": "No text was found in this image. Make sure the whole receipt is in frame and in focus.",
+    "reviewIncomplete": "Some receipt details could not be read confidently. Enter the 8-digit student number and Latin name from Açıklama, and check the payment date."
   },
   "security": {
     "lockedTitle": "UniGym is locked",
@@ -286,6 +281,10 @@
         "name": "Strength · Full body",
         "description": "3 balanced sessions for all major muscle groups."
       }
-    }
+    },
+    "selectMoreDays": "Select {{count}} more day(s) to continue",
+    "daysSelected": "All {{count}} training days selected. Deselect a day to change it.",
+    "selectMoreDays_one": "Select {{count}} more day to continue",
+    "selectMoreDays_other": "Select {{count}} more days to continue"
   }
 }

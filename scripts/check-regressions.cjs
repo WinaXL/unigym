@@ -36,37 +36,57 @@ const { useSessionStore } = require('../src/stores/sessionStore.ts');
 const { useHistoryStore } = require('../src/stores/historyStore.ts');
 const { localCalendarDate } = require('../src/utils/dateUtils.ts');
 
-test('Receipt references survive OCR separators, wrapping and incomplete blocks', () => {
-  const now = new Date(2026, 9, 7, 12);
-  const variants = [
-    '07.10.2026/5805/4/13', '07.10.2026 / 5805 / 4 / 13',
-    '07-10-2026-5805-4-13', '07.10.2026\\5805\\4\\13',
-    '07.10.2026/\n5805/4/13', '07.10.2026/5805/\n4/13',
-    'O7.1O.2O26/58O5/4/I3', '07.10.2026∕5805∕4∕13',
-    'o7.1o.2o26/58o5/4/l3', '07.10.2026\n5805/4/13',
-  ];
-  for (const reference of variants) {
-    const text = `Açıklama : 23141035 MAXAT KALIYEV\nİşlem Tarihi : 07.10.2026\nReferans Numarası : ${reference}`;
-    const result = extractReceiptFields({ text, blocks: [{ text: 'İŞ BANKASI', boundingBox: { x: 0, y: 0, width: 80, height: 20 } }] }, {}, now);
-    assert.equal(result.referenceId, '07-10-2026-5805-4-13', reference);
-    assert.equal(result.studentNumber, '23141035');
-    assert.equal(result.paymentDate, '2026-10-07');
-  }
-  const absent = extractReceiptFields({ text: 'İşlem Tarihi: 07.10.2026\nMüşteri No: 47173963\nAçıklama: 23141035 MAXAT KALIYEV', blocks: [] }, {}, now);
-  assert.equal(absent.referenceId, undefined);
-  const repaired = extractReceiptFields({ text: 'Referans Numarası: 97.19.2826/5333/4/13\nİşlem Tarihi: 07.10.2026', blocks: [] }, {}, now);
-  assert.equal(repaired.referenceId, '07-10-2026-5333-4-13'); // Bank sequence is never guessed.
+test('APK distribution keeps the UniGym installer label and browser asset name', () => {
+  assert.equal(require('../app.json').expo.name, 'UniGym');
+  const { releaseArgs } = require('./publish-preview-apk.cjs');
+  const args = releaseArgs(path.join('preview', 'UniGym.apk'), 'preview-test', 'a'.repeat(40));
+  assert.equal(args[3], path.join('preview', 'UniGym.apk'));
+  assert.ok(args.includes('--prerelease'));
+  assert.ok(!args.includes('--clobber'));
+  assert.throws(() => releaseArgs('application.apk', 'preview-test', 'a'.repeat(40)));
+  assert.throws(() => releaseArgs('UniGym.apk', '--unsafe', 'a'.repeat(40)));
+  assert.throws(() => releaseArgs('UniGym.apk', 'preview-test', 'main'));
 });
 
-test('OCR extraction preserves old and future receipt dates for server validation', () => {
-  const now = new Date(2026, 9, 19, 12);
-  for (const [printed, iso] of [['07.10.2026', '2026-10-07'], ['20.10.2026', '2026-10-20']]) {
-    const result = extractReceiptFields({
-      text: `İşlem Tarihi: ${printed} 09:29:55\nReferans Numarası: ${printed}/6306/4/13\nAçıklama: 23141035 MAXAT KALIYEV`, blocks: [],
-    }, {}, now);
-    assert.equal(result.paymentDate, iso);
-    assert.equal(result.referenceId, `${printed.replaceAll('.', '-')}-6306-4-13`);
+test('Receipt identity comes exclusively from an Açıklama cell with eight digits and a Latin name', () => {
+  const header = 'TÜRKİYE İŞ BANKASI\nMüşteri No: 45178963\n45178963 Düzenlene Tarihi\nİşlem Tarihi: 07.10.2026 09:29:55\nDüzenleme Tarihi: 08.10.2026';
+  for (const cell of [
+    'Açıklama : 23141035 MAXAT KALIYEV', 'ACIKLAMA: 23141035 MAXAT KALIYEV',
+    'AÇIKLAMA\n23141035 MAXAT KALIYEV', 'Açıklama: 23141035\nMAXAT KALIYEV',
+    'Açıklama\n: 23141035\nMAXAT KALIYEV',
+  ]) {
+    const result = extractReceiptFields({ text: `${header}\n${cell}`, blocks: [] });
+    assert.deepEqual(result, { studentNumber: '23141035', studentName: 'MAXAT KALIYEV', paymentDate: '2026-10-07' });
   }
+  for (const cell of [
+    '', '23141035 MAXAT KALIYEV', 'Student Name: MAXAT KALIYEV\nStudent Number: 23141035',
+    'Açıklama: unreadable\n23141035 MAXAT KALIYEV',
+    'Açıklama: 45178963 Düzenlene Tarihi', 'Açıklama\nMüşteri No: 45178963\nMAXAT KALIYEV',
+    'Açıklama: 1234567 MAXAT KALIYEV', 'Açıklama: 123456789 MAXAT KALIYEV',
+    'Açıklama: 23141035 МАКСАТ КАЛИЕВ',
+    'Açıklama: 23141035 MAXAT KALIYEV\nAçıklama: 23141036 ALEX SMITH',
+  ]) {
+    const result = extractReceiptFields({ text: `${header}\n${cell}`, blocks: [] });
+    assert.equal(result.studentNumber, undefined, cell);
+    assert.equal(result.studentName, undefined, cell);
+    assert.equal(result.paymentDate, '2026-10-07');
+  }
+  const result = extractReceiptFields({ text: header, blocks: [
+    { text: 'Açıklama', boundingBox: { x: 10, y: 400, width: 90, height: 20 } },
+    { text: ': 23141035 MAXAT KALIYEV', boundingBox: { x: 180, y: 400, width: 250, height: 20 } },
+  ] });
+  assert.equal(result.studentNumber, '23141035');
+  assert.equal(result.studentName, 'MAXAT KALIYEV');
+});
+
+test('Payment dates preserve old dates and never guess from print dates or impossible digits', () => {
+  for (const [printed, iso] of [['07.10.2026', '2026-10-07'], ['20.10.2026', '2026-10-20'], ['01/01/2001', '2001-01-01'], ['2020-02-29', '2020-02-29']]) {
+    assert.equal(extractReceiptFields({ text: `İşlem Tarihi: ${printed} 09:29:55\nDüzenleme Tarihi: 19.10.2026`, blocks: [] }).paymentDate, iso);
+  }
+  for (const text of ['İşlem Tarihi: 97.19.2826', 'İşlem Tarihi: 31.02.2026', 'Düzenleme Tarihi: 07.10.2026', 'Referans Numarası: 07.10.2026/6306/4/13', 'İşlem Tarihi\nDüzenleme Tarihi: 07.10.2026']) {
+    assert.equal(extractReceiptFields({ text, blocks: [] }).paymentDate, undefined, text);
+  }
+  assert.equal(extractReceiptFields({ text: 'İşlem Tarihi\n07.10.2026 09:29:55', blocks: [] }).paymentDate, '2026-10-07');
 });
 
 test('Native scan failures return an editable review with partial fields and distinct diagnostics', async () => {
@@ -99,14 +119,17 @@ test('Native scan failures return an editable review with partial fields and dis
     assert.equal(failed.diagnostics.failedPasses, 1);
     const empty = await scan({ text: '', blocks: [] });
     assert.equal(empty.issue, 'NO_TEXT');
-    const partial = await scan({ text: 'Açıklama: 23141035 MAXAT KALIYEV\nİşlem Tarihi: 07.10.2026', blocks: [] });
-    assert.equal(partial.issue, 'NO_REFERENCE');
+    const partial = await scan({ text: 'Açıklama: 23141035 MAXAT KALIYEV', blocks: [] });
+    assert.equal(partial.issue, 'INCOMPLETE_DETAILS');
     assert.equal(partial.receipt.studentNumber, '23141035');
-    assert.equal(partial.receipt.paymentDate, '2026-10-07');
+    assert.equal(partial.receipt.paymentDate, undefined);
     assert.ok(partial.diagnostics.recognizedCharacters > 0);
-    const complete = await scan({ text: 'Referans Numarası: 07.10.2026/6306/4/13', blocks: [] });
+    const complete = await scan({ text: 'Açıklama: 23141035 MAXAT KALIYEV\nİşlem Tarihi: 07.10.2026', blocks: [] });
     assert.equal(complete.issue, null);
-    assert.equal(complete.receipt.referenceId, '07-10-2026-6306-4-13');
+    assert.deepEqual(complete.receipt, { studentName: 'MAXAT KALIYEV', studentNumber: '23141035', paymentDate: '2026-10-07' });
+    const misleading = await scan({ text: '45178963 Düzenlene Tarihi\nİşlem Tarihi: 07.10.2026', blocks: [] });
+    assert.equal(misleading.issue, 'INCOMPLETE_DETAILS');
+    assert.equal(misleading.receipt.studentNumber, undefined);
   } finally {
     Module._load = originalLoad;
     delete require.cache[parserPath];
@@ -157,10 +180,10 @@ test('Programs map chronologically, exclude Sundays, and apply grace/reset/recov
   assert.equal(rules.workoutOn(progress, '2026-10-13').focus, 'steadyState');
 });
 
-test('Shared references work for two students; same-student verification is idempotent', async () => {
+test('Old receipts activate without a reference; student/date verification is idempotent', async () => {
   memory.clear();
-  const paymentDate = new Date().toISOString().slice(0, 10);
-  const receipt = { referenceId: 'RCP-482913', studentNumber: '23141035', studentName: 'MAXAT KALIYEV', paymentDate };
+  const paymentDate = '2001-01-01';
+  const receipt = { studentNumber: '23141035', studentName: 'MAXAT KALIYEV', paymentDate };
   const context = { boundStudentNumber: null, boundFullName: null };
   const results = await Promise.all([
     mockServerState.redeemReceipt(receipt, context),
@@ -169,13 +192,36 @@ test('Shared references work for two students; same-student verification is idem
   ]);
   assert.ok(results.every((result) => result.success));
   assert.equal(results[0].membership.expiryDate, results[2].membership.expiryDate);
+  assert.equal(results[0].membership.status, 'active');
+  assert.equal(results[0].membership.daysRemaining, 30);
+  assert.ok(new Date(results[0].membership.expiryDate).getTime() > Date.now() + 29 * 86400000);
   assert.equal(JSON.parse(memory.get(SERVER_STATE_KEYS.RECEIPT_LEDGER)).length, 2);
   const mismatch = await mockServerState.redeemReceipt(receipt, { boundStudentNumber: '23141036', boundFullName: 'OTHER STUDENT' });
   assert.equal(mismatch.error, 'ID_MISMATCH');
+  const wrongName = await mockServerState.redeemReceipt(receipt, { boundStudentNumber: '23141035', boundFullName: 'OTHER STUDENT' });
+  assert.equal(wrongName.error, 'NAME_MISMATCH');
+  const renewed = await mockServerState.redeemReceipt({ ...receipt, paymentDate: '2001-01-02' }, context);
+  assert.equal(new Date(renewed.membership.expiryDate) - new Date(results[0].membership.expiryDate), 30 * 86400000);
+  const invalid = await mockServerState.redeemReceipt({ ...receipt, paymentDate: '2001-02-30' }, context);
+  assert.equal(invalid.error, 'INVALID_DATE');
   const future = await mockServerState.redeemReceipt({ ...receipt, paymentDate: '2099-01-01' }, context);
   assert.equal(future.error, 'FUTURE_DATE');
   memory.set(SERVER_STATE_KEYS.RECEIPT_LEDGER, '{}');
   await assert.rejects(mockServerState.redeemReceipt(receipt, context));
+});
+
+test('Legacy dated ledger entries migrate without granting the same payment again', async () => {
+  memory.clear();
+  const receipt = { studentNumber: '23141035', studentName: 'MAXAT KALIYEV', paymentDate: '2026-10-07' };
+  const context = { boundStudentNumber: null, boundFullName: null };
+  const first = await mockServerState.redeemReceipt(receipt, context);
+  memory.set(SERVER_STATE_KEYS.RECEIPT_LEDGER, JSON.stringify([{ ref: '07-10-2026-6306-4-13', studentNumber: 'STD23141035', redeemedAtIso: new Date().toISOString() }]));
+  const repeat = await mockServerState.redeemReceipt(receipt, context);
+  assert.equal(repeat.membership.expiryDate, first.membership.expiryDate);
+  await mockServerState.redeemReceipt({ ...receipt, paymentDate: '2026-10-06' }, context);
+  const ledger = JSON.parse(memory.get(SERVER_STATE_KEYS.RECEIPT_LEDGER));
+  assert.equal(ledger[1].paymentDate, '2026-10-07');
+  assert.equal(ledger[1].ref, undefined);
 });
 
 test('Workout completion needs attendance + exercises, persists, and isolates students', async () => {
@@ -188,6 +234,8 @@ test('Workout completion needs attendance + exercises, persists, and isolates st
   useAuthStore.getState().setAuthenticated({ id: 'user-23141035', studentId: '23141035', fullName: 'MAXAT KALIYEV' });
   await useWorkoutStore.getState().load('user-23141035');
   await assert.rejects(useWorkoutStore.getState().choosePlan('fullBody', [0, 1, 2]));
+  await assert.rejects(useWorkoutStore.getState().choosePlan('cardio', [1, 2, 3, 4]));
+  await assert.rejects(useWorkoutStore.getState().choosePlan('bodySplit', [1, 2, 3, 4, 5]));
   const progress = { schedules: [{ effectiveFrom: start, planId: 'fullBody', weekdays: selected }], checked: {}, completed: [] };
   useWorkoutStore.setState({ progress });
   assert.equal(await useWorkoutStore.getState().complete(today), false);

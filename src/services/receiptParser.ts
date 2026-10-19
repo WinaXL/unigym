@@ -12,10 +12,8 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { decode as decodeJpeg } from 'jpeg-js';
 
 import type { ReceiptData } from '../types/api';
-import { extractReceiptFields, type OcrTextBlock, type ReceiptHints } from './receiptTextParser';
+import { extractReceiptFields, type OcrTextBlock } from './receiptTextParser';
 import { findPaperFrame } from './paperFrame';
-
-export type { ReceiptHints } from './receiptTextParser';
 
 export type ReceiptScanErrorCode =
   /** The native recogniser is not in this binary (Expo Go, web). */
@@ -24,8 +22,8 @@ export type ReceiptScanErrorCode =
   | 'UNREADABLE_IMAGE'
   /** Recognition ran but found no text. */
   | 'NO_TEXT'
-  /** Text was found but no receipt reference could be identified in it. */
-  | 'NO_REFERENCE';
+  /** Text was found but one or more required details could not be read. */
+  | 'INCOMPLETE_DETAILS';
 
 export interface ReceiptScanResult {
   receipt: ReceiptData;
@@ -89,7 +87,7 @@ function releaseQuietly(resource: { release?: () => void } | null) {
 
 /**
  * Crop away the black border around a receipt photographed on a screen, then
- * enlarge it so the reference digits are large enough to read. Returns the
+ * enlarge it so the receipt text is large enough to read. Returns the
  * original URI when the paper already fills the photo or the crop fails.
  */
 async function focusOnPaper(uri: string): Promise<string> {
@@ -154,11 +152,11 @@ async function focusOnPaper(uri: string): Promise<string> {
 }
 
 /**
- * The reference sits in the right-hand column of an İş Bankası dekont. Cropping
+ * The payment date sits in the right-hand column of an İş Bankası dekont. Cropping
  * to that column feeds ML Kit larger digits, so 0/8/9 confusions are less likely.
  * Returns null when the image cannot be measured or cropped.
  */
-async function cropReferenceColumn(uri: string): Promise<string | null> {
+async function cropPaymentColumn(uri: string): Promise<string | null> {
   let context: ReturnType<typeof ImageManipulator.manipulate> | null = null;
   let image: Awaited<ReturnType<ReturnType<typeof ImageManipulator.manipulate>['renderAsync']>> | null = null;
   try {
@@ -197,27 +195,21 @@ function blocksOf(result: OcrResult | null): OcrTextBlock[] {
 /**
  * Read receipt fields from a local image (file:// or content:// URI).
  *
- * The whole slip is read first, then the reference column on its own. Both
- * readings are kept: a clearer column reading replaces a scrambled full-page
- * reference when its date needed fewer digit corrections.
+ * The whole slip is read first, then the payment-date column on its own.
+ * Each pass is parsed separately to avoid joining unrelated lines across crops.
  *
  * Name, student number and date may come back undefined when they cannot be
  * read with confidence; the student fills those in and the adapter validates
- * them. A missing reference or OCR engine is returned as a review notice,
+ * them. Missing details or an unavailable OCR engine return a review notice,
  * preserving all fields that were read so the user can complete them manually.
  *
- * @param hints Identity already bound to this device. Used only to recognise
- *   those values in the text — never to fill a field the image does not show.
  */
-export async function parseReceiptImage(
-  imageUri: string,
-  hints: ReceiptHints = {}
-): Promise<ReceiptScanResult> {
+export async function parseReceiptImage(imageUri: string): Promise<ReceiptScanResult> {
   const diagnostics: ReceiptScanResult['diagnostics'] = {
     nativeAvailable: OCR_AVAILABLE, attemptedPasses: 0, failedPasses: 0, recognizedCharacters: 0,
   };
   const finish = (receipt: ReceiptData, issue: ReceiptScanErrorCode | null): ReceiptScanResult => {
-    // Counts and status only: never log receipt text, names, reference IDs or URIs.
+    // Counts and status only: never log receipt text, names or URIs.
     console.info('[ReceiptOCR]', JSON.stringify({ ...diagnostics, issue }));
     return { receipt, issue, diagnostics };
   };
@@ -240,7 +232,7 @@ export async function parseReceiptImage(
     diagnostics.failedPasses++;
   }
 
-  const columnUri = await cropReferenceColumn(sourceUri);
+  const columnUri = await cropPaymentColumn(sourceUri);
   let column: OcrResult | null = null;
   if (columnUri) {
     try {
@@ -250,27 +242,21 @@ export async function parseReceiptImage(
     }
   }
 
-  const fullBlocks = blocksOf(full);
-  const columnText = column?.text?.trim() ?? '';
-  const blocks = [...fullBlocks];
-  if (columnText && fullBlocks.length > 0) {
-    // Above the full-page blocks, so a tie keeps this closer reading of the digits.
-    columnText.split(/\r?\n/).filter(Boolean).forEach((line, index) => {
-      blocks.push({
-        text: line,
-        boundingBox: { x: 0, y: -100000 + index * 48, width: 20, height: 36 },
-      });
-    });
-  }
-
-  const text = [columnText, full?.text].filter((part) => typeof part === 'string' && part.trim()).join('\n');
+  const text = [column?.text, full?.text].filter((part) => typeof part === 'string' && part.trim()).join('\n');
   diagnostics.recognizedCharacters = text.length;
   if (!text.trim()) return finish({}, diagnostics.failedPasses === diagnostics.attemptedPasses ? 'UNREADABLE_IMAGE' : 'NO_TEXT');
 
-  const fields = extractReceiptFields(
-    { text, blocks: blocks.length > 0 ? blocks : [] },
-    hints
-  );
-
-  return finish(fields, fields.referenceId ? null : 'NO_REFERENCE');
+  const readings = [full, column].filter((result): result is OcrResult => result !== null)
+    .map((result) => extractReceiptFields({ text: result.text ?? '', blocks: blocksOf(result) }));
+  const fields: ReceiptData = {};
+  for (const key of ['studentName', 'studentNumber', 'paymentDate'] as const) {
+    const values = [...new Set(readings.map((reading) => reading[key]).filter((value): value is string => !!value))];
+    if (values.length === 1) fields[key] = values[0];
+  }
+  // Identity is one Açıklama cell: never combine halves from different passes.
+  if (!fields.studentName || !fields.studentNumber) {
+    delete fields.studentName;
+    delete fields.studentNumber;
+  }
+  return finish(fields, fields.studentName && fields.studentNumber && fields.paymentDate ? null : 'INCOMPLETE_DETAILS');
 }

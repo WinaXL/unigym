@@ -1,5 +1,14 @@
 # UniGym handoff
 
+Current update (19 October 2026): the history below describes earlier builds.
+Routes now live in `src/app/`. Receipt review uses only student name, student
+number and payment date; reference fields and the seven-day age limit are gone.
+Identity extraction requires the Açıklama cell's eight-digit number and Latin
+name. Verification is idempotent per student/payment date, and activation grants
+30 days from today or the current expiry, whichever is later. See
+`docs/ocr-and-branding.md` and `docs/workouts-and-receipts.md` for current behavior.
+The current user requested code/test/push only: do not start an EAS build.
+
 This is a record of the work done in Cursor on the UniGym Expo app, for the next agent. The repo is `https://github.com/WinaXL/unigym.git`, branch `main`. Latest commit at the time of writing: `be7d098`.
 
 The app is a campus-gym membership client. A student scans an İş Bankası payment receipt (dekont), the app binds their name and student number to the device, and a 30-day membership is extended. There is no login. The real gym desk uses ACS card readers (Akselektronik) and AKS Manager on a PC. This app does not talk to that system. It only reads the same paper receipt the desk uses.

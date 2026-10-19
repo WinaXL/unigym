@@ -20,11 +20,11 @@ import { useTranslation } from 'react-i18next';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { useThemeColors } from '../../hooks/useThemeColors';
-import { useAuthStore } from '../../stores/authStore';
 import { useApiAdapter } from '../../services/ApiProvider';
 import { membershipService } from '../../services/membershipService';
 import {
@@ -40,7 +40,6 @@ import {
   STUDENT_NUMBER_MAX_LENGTH,
 } from '../../utils/studentNumber';
 import type { ReceiptData, ReceiptRejectionCode } from '../../types/api';
-import { canonicalReferenceId } from '../../utils/referenceId';
 
 type Step = 'idle' | 'camera' | 'processing' | 'verify_modal';
 
@@ -56,9 +55,6 @@ const REJECTION_MESSAGE_KEYS: Record<ReceiptRejectionCode, string> = {
   INVALID_STUDENT_NUMBER: 'scan.errorInvalidStudentNumber',
   NO_DATE: 'scan.errorNoDate',
   INVALID_DATE: 'scan.errorInvalidDate',
-  INVALID_REFERENCE: 'scan.errorInvalidReference',
-  ALREADY_USED: 'scan.errorAlreadyUsed',
-  DATE_EXPIRED: 'scan.errorDateExpired',
   FUTURE_DATE: 'scan.errorFutureDate',
   NAME_MISMATCH: 'scan.errorNameMismatch',
   ID_MISMATCH: 'scan.errorAnotherStudent',
@@ -73,14 +69,14 @@ const SCAN_ERROR_MESSAGE_KEYS: Record<ReceiptScanErrorCode, string> = {
   OCR_UNAVAILABLE: 'scan.reviewOcrUnavailable',
   UNREADABLE_IMAGE: 'scan.reviewUnreadable',
   NO_TEXT: 'scan.reviewNoText',
-  NO_REFERENCE: 'scan.reviewNoReference',
+  INCOMPLETE_DETAILS: 'scan.reviewIncomplete',
 };
 
 export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const adapter = useApiAdapter();
-  const user = useAuthStore((s) => s.user);
+  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState<Step>('idle');
   const [loading, setLoading] = useState(false);
@@ -90,7 +86,6 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
   const [studentName, setStudentName] = useState('');
   const [studentNumber, setStudentNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
-  const [referenceId, setReferenceId] = useState('');
   const [scanIssue, setScanIssue] = useState<ReceiptScanErrorCode | null>(null);
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -139,20 +134,15 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
     setStudentName('');
     setStudentNumber('');
     setPaymentDate('');
-    setReferenceId('');
 
     try {
-      const parsed = await parseReceiptImage(uri, {
-        fullName: user?.fullName,
-        studentNumber: user?.studentId,
-      });
+      const parsed = await parseReceiptImage(uri);
       // The parse takes a moment; the sheet may have been dismissed since.
       if (!mountedRef.current) return;
 
       setStudentName(parsed.receipt.studentName ?? '');
       setStudentNumber(digitsOnly(parsed.receipt.studentNumber ?? ''));
       setPaymentDate(parsed.receipt.paymentDate ?? '');
-      setReferenceId(parsed.receipt.referenceId ?? '');
       setScanIssue(parsed.issue);
       setStep('verify_modal');
     } catch {
@@ -258,11 +248,6 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
       failWith('scan.errorNoDate');
       return;
     }
-    const referenceValue = canonicalReferenceId(referenceId);
-    if (!referenceValue) {
-      failWith('scan.errorInvalidReference');
-      return;
-    }
 
     setLoading(true);
     try {
@@ -270,7 +255,6 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
         studentName: studentName.trim(),
         studentNumber: studentNumber.trim(),
         paymentDate: paymentDateValue,
-        referenceId: referenceValue,
       };
 
       // The adapter decides. Identity binding and cache writes happen inside the
@@ -315,7 +299,7 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
           </View>
           <Text style={styles.cameraHint}>{t('scan.alignReceipt')}</Text>
         </View>
-        <View style={[styles.cameraControls, { backgroundColor: colors.background }]}>
+        <View style={[styles.cameraControls, { backgroundColor: colors.background, paddingBottom: Spacing[8] + insets.bottom }]}>
           <TouchableOpacity
             style={styles.controlCancel}
             onPress={() => setStep('idle')}
@@ -413,7 +397,7 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
                 backgroundColor: colors.surface,
                 maxHeight:
                   keyboardHeight > 0
-                    ? Math.max(280, Dimensions.get('screen').height - keyboardHeight - 24)
+                    ? Math.max(280, Dimensions.get('screen').height - keyboardHeight - insets.top - 24)
                     : '90%',
               },
             ]}
@@ -424,7 +408,7 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={[
                 styles.sheetScroll,
-                keyboardHeight > 0 && { paddingBottom: Spacing[6] },
+                { paddingBottom: keyboardHeight > 0 ? Spacing[6] : Spacing[6] + insets.bottom },
               ]}
             >
               <View style={styles.sheetHeader}>
@@ -499,31 +483,6 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
                   />
                 </View>
 
-                {/* Reference is editable; the adapter still validates the submission. */}
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                    {t('scan.referenceId')}
-                  </Text>
-                  <TextInput
-                    accessibilityLabel={t('scan.referenceId')}
-                    style={[styles.textInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
-                    value={referenceId}
-                    onChangeText={setReferenceId}
-                    placeholder="07.10.2026/1234/1/1"
-                    placeholderTextColor={colors.textTertiary}
-                    autoCapitalize="characters"
-                    autoCorrect={false}
-                    maxLength={64}
-                    editable={!loading}
-                    onFocus={() => {
-                      setTimeout(() => sheetScrollRef.current?.scrollToEnd({ animated: true }), 50);
-                    }}
-                  />
-                  <Text style={[styles.inputHint, { color: colors.textTertiary }]}>
-                    {t('scan.referenceIdHint')}
-                  </Text>
-                </View>
-
               </Card>
 
               <Button
@@ -550,7 +509,7 @@ export function ReceiptScannerFlow({ onSuccess }: ReceiptScannerFlowProps) {
 
       {/* Success Celebration Modal */}
       <Modal visible={successModal} transparent animationType="fade">
-        <View style={styles.celebrationOverlay}>
+        <View style={[styles.celebrationOverlay, { paddingTop: Spacing[6] + insets.top, paddingBottom: Spacing[6] + insets.bottom }]}>
           <View style={[styles.celebrationCard, { backgroundColor: colors.surface }]}>
             <Text style={styles.celebrationEmoji}>🎉</Text>
             <Text style={[styles.celebrationTitle, { color: colors.textPrimary }]}>
@@ -744,9 +703,6 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.semibold,
-  },
-  inputHint: {
-    fontSize: Typography.fontSize.xs,
   },
   textInput: {
     borderWidth: 1,

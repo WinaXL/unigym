@@ -31,6 +31,7 @@ export function WorkoutsScreen() {
   const latest = progress.schedules.at(-1);
   const configuring = editing || !latest;
   const plan = getWorkoutPlan(draftPlan)!;
+  const missingDays = Math.max(0, plan.days.length - days.length);
   const monday = shiftWorkoutDate(today, -((workoutWeekday(today) + 6) % 7));
   const week = Array.from({ length: 6 }, (_, index) => shiftWorkoutDate(monday, index));
   const date = selectedDate && week.includes(selectedDate) ? selectedDate : today;
@@ -85,12 +86,19 @@ export function WorkoutsScreen() {
             <View style={styles.wrap}>
               {[1, 2, 3, 4, 5, 6].map((day) => (
                 <Pressable key={day} accessibilityRole="checkbox" aria-checked={days.includes(day)}
-                  onPress={() => setDays(days.includes(day) ? days.filter((value) => value !== day) : [...days, day].sort((a, b) => a - b))}
-                  style={[styles.dayChip, { backgroundColor: days.includes(day) ? colors.primaryLight : colors.surface, borderColor: days.includes(day) ? colors.primary : colors.border }]}>
+                  disabled={!days.includes(day) && days.length >= plan.days.length}
+                  aria-disabled={!days.includes(day) && days.length >= plan.days.length}
+                  onPress={() => setDays((current) => current.includes(day)
+                    ? current.filter((value) => value !== day)
+                    : current.length < plan.days.length ? [...current, day].sort((a, b) => a - b) : current)}
+                  style={[styles.dayChip, { opacity: !days.includes(day) && days.length >= plan.days.length ? 0.45 : 1, backgroundColor: days.includes(day) ? colors.primaryLight : colors.surface, borderColor: days.includes(day) ? colors.primary : colors.border }]}>
                   <Text style={{ color: days.includes(day) ? colors.primary : colors.textPrimary }}>{dayLabel(day)}</Text>
                 </Pressable>
               ))}
             </View>
+            <Text accessibilityLiveRegion="polite" style={{ color: colors.primary }}>
+              {t(missingDays > 0 ? 'workouts.selectMoreDays' : 'workouts.daysSelected', { count: missingDays || days.length })}
+            </Text>
             <Text style={{ color: colors.textSecondary }}>{t('workouts.sundayClosed')}</Text>
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('workouts.planPreview')}</Text>
             {plan.days.map((day, index) => (
@@ -101,7 +109,7 @@ export function WorkoutsScreen() {
               </View>
             ))}
             {latest ? <Text style={{ color: colors.textSecondary }}>{t('workouts.changeTomorrow')}</Text> : null}
-            <Button label={t('workouts.startPlan')} disabled={days.length !== plan.days.length || busy} loading={busy}
+            <Button label={missingDays > 0 ? t('workouts.selectMoreDays', { count: missingDays }) : t('workouts.startPlan')} disabled={days.length !== plan.days.length || busy} loading={busy}
               onPress={() => void act(async () => { await choosePlan(draftPlan, days); setEditing(false); setSelectedDate(null); })} />
             {latest ? <Button variant="ghost" label={t('common.cancel')} disabled={busy} onPress={() => setEditing(false)} /> : null}
           </>

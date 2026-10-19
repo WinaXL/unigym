@@ -22,27 +22,23 @@ import type {
   ReceiptValidationContext,
   ReceiptValidationResult,
 } from '../../types/api';
-import { readJson, writeJson } from '../persistence';
+import { readJson, readJsonWith, writeJson } from '../persistence';
 import { isMembership, parseMembership } from '../schemas';
 import {
   SERVER_STATE_KEYS,
-  MAX_RECEIPT_AGE_DAYS,
   MEMBERSHIP_DAYS_PER_RECEIPT,
-  RECEIPT_LEDGER_MAX_ENTRIES,
 } from '../../core/constants';
 import {
-  normalizeReferenceId,
-  referenceReplayKey,
   normalizePersonName,
   normalizeStudentNumber,
   parseCalendarDateUtc,
-  utcDayDiff,
   todayUtcMidnight,
 } from './receiptRules';
 import { migrateLegacyStudentNumber, migrateLegacyUserId } from '../../utils/studentNumber';
 
 interface LedgerEntry {
-  ref: string;
+  /** Null only for legacy records whose payment date was not stored. */
+  paymentDate: string | null;
   studentNumber: string;
   redeemedAtIso: string;
 }
@@ -59,19 +55,30 @@ export class LedgerUnavailableError extends Error {
 
 // ── Shape guards ─────────────────────────────────────────────────────────────
 
-function isLedgerEntry(value: unknown): value is LedgerEntry {
-  if (typeof value !== 'object' || value === null) return false;
-  const entry = value as Record<string, unknown>;
-  return (
-    typeof entry.ref === 'string' &&
-    entry.ref.length > 0 &&
-    typeof entry.studentNumber === 'string' &&
-    typeof entry.redeemedAtIso === 'string'
-  );
-}
-
-function isLedger(value: unknown): value is LedgerEntry[] {
-  return Array.isArray(value) && value.every(isLedgerEntry);
+function parseLedger(value: unknown): LedgerEntry[] | null {
+  if (!Array.isArray(value)) return null;
+  const entries: LedgerEntry[] = [];
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) return null;
+    const entry = item as Record<string, unknown>;
+    if (typeof entry.studentNumber !== 'string' || typeof entry.redeemedAtIso !== 'string') return null;
+    let paymentDate: string | null;
+    if (entry.paymentDate === null) {
+      paymentDate = null;
+    } else if (typeof entry.paymentDate === 'string' && parseCalendarDateUtc(entry.paymentDate) !== null) {
+      paymentDate = entry.paymentDate;
+    } else if (entry.paymentDate === undefined && typeof entry.ref === 'string' && entry.ref.length > 0) {
+      // Read-only migration from pre-simplification bank references. Other old
+      // formats contain no date: preserve the history without inventing one.
+      const parts = /^(\d{2})[./-](\d{2})[./-](\d{4})[./-]/.exec(entry.ref);
+      const iso = parts ? `${parts[3]}-${parts[2]}-${parts[1]}` : null;
+      paymentDate = iso && parseCalendarDateUtc(iso) !== null ? iso : null;
+    } else {
+      return null;
+    }
+    entries.push({ paymentDate, studentNumber: migrateLegacyStudentNumber(entry.studentNumber), redeemedAtIso: entry.redeemedAtIso });
+  }
+  return entries;
 }
 
 function isMembershipsByUser(value: unknown): value is MembershipsByUser {
@@ -87,7 +94,7 @@ function isMembershipsByUser(value: unknown): value is MembershipsByUser {
  * Redemption is a read-modify-write across two keys. Interleaving two of them
  * let both callers observe the same pre-state, both pass the duplicate check,
  * and the second write clobber the first — extending the membership twice while
- * losing a reference from the ledger. Queueing removes the interleaving at the
+ * losing a verification from the ledger. Queueing removes the interleaving at the
  * only layer that can actually guarantee it.
  */
 let queue: Promise<unknown> = Promise.resolve();
@@ -101,13 +108,10 @@ function serialize<T>(operation: () => Promise<T>): Promise<T> {
 // ── State access ─────────────────────────────────────────────────────────────
 
 async function loadLedger(): Promise<LedgerEntry[]> {
-  const outcome = await readJson(SERVER_STATE_KEYS.RECEIPT_LEDGER, isLedger);
+  const outcome = await readJsonWith(SERVER_STATE_KEYS.RECEIPT_LEDGER, parseLedger);
   if (outcome.status === 'corrupt') throw new LedgerUnavailableError();
   if (outcome.status === 'empty') return [];
-  return outcome.value.map((entry) => ({
-    ...entry,
-    studentNumber: migrateLegacyStudentNumber(entry.studentNumber),
-  }));
+  return outcome.value;
 }
 
 /**
@@ -182,12 +186,7 @@ export const mockServerState = {
     context: ReceiptValidationContext
   ): Promise<ReceiptValidationResult> {
     return serialize(async () => {
-      // 1. Reference must be well-formed before anything else, so that a
-      //    malformed value can never become a novel ledger entry.
-      const ref = normalizeReferenceId(receipt.referenceId);
-      if (!ref) return reject(receipt, 'INVALID_REFERENCE');
-
-      // 2. Identity fields must both be present. An absent student number used
+      // 1. Identity fields must both be present. An absent student number used
       //    to satisfy the ownership check by defaulting to "matches".
       const receiptName = normalizePersonName(receipt.studentName);
       if (!receiptName) return reject(receipt, 'NO_NAME');
@@ -196,7 +195,7 @@ export const mockServerState = {
       const receiptStudentNumber = normalizeStudentNumber(receipt.studentNumber);
       if (!receiptStudentNumber) return reject(receipt, 'INVALID_STUDENT_NUMBER');
 
-      // 3. Ownership. Both fields must match the bound identity — a receipt that
+      // 2. Ownership. Both fields must match the bound identity — a receipt that
       //    matches only on name, or only on number, belongs to someone else.
       if (context.boundStudentNumber !== null) {
         const boundNumber = normalizeStudentNumber(context.boundStudentNumber);
@@ -211,7 +210,7 @@ export const mockServerState = {
         }
       }
 
-      // 4. Payment date, in strict YYYY-MM-DD, inside the freshness window.
+      // 3. Strict payment date. Past payments have no age limit.
       if (!receipt.paymentDate) return reject(receipt, 'NO_DATE');
 
       const paidUtc = parseCalendarDateUtc(receipt.paymentDate);
@@ -219,20 +218,17 @@ export const mockServerState = {
 
       const now = new Date();
       const nowMs = now.getTime();
-      const ageDays = utcDayDiff(todayUtcMidnight(now), paidUtc);
+      if (paidUtc > todayUtcMidnight(now)) return reject(receipt, 'FUTURE_DATE');
 
-      if (ageDays < 0) return reject(receipt, 'FUTURE_DATE');
-      if (ageDays > MAX_RECEIPT_AGE_DAYS) return reject(receipt, 'DATE_EXPIRED');
-
-      // 5. References are shared across students. Re-verifying the same
-      //    reference for one student succeeds without extending access again.
+      // 4. With only identity and date, one payment per student per date can be
+      //    distinguished. Repeat confirmation returns the existing entitlement.
+      //    Different students can verify the same payment date independently.
       const ledger = await loadLedger();
-      const replayKey = referenceReplayKey(ref);
       const memberships = await loadMemberships();
       const userId = userIdFor(receiptStudentNumber);
       const existing = memberships[userId];
       const alreadyVerified = ledger.some((entry) =>
-        entry.studentNumber === receiptStudentNumber && referenceReplayKey(entry.ref) === replayKey
+        entry.studentNumber === receiptStudentNumber && entry.paymentDate === receipt.paymentDate
       );
       if (alreadyVerified) {
         if (!existing) throw new LedgerUnavailableError();
@@ -246,33 +242,33 @@ export const mockServerState = {
         };
       }
 
-      // 6. Entitlement, computed here and nowhere else. Extend from the later of
-      //    the current expiry and the payment date, so renewing early adds to
-      //    the remaining balance instead of discarding it.
-      const paidDate = new Date(paidUtc);
+      // 5. Old receipts activate today. Early renewals preserve the remaining
+      //    balance by extending from the later of activation and current expiry.
       const existingExpiryMs = existing ? new Date(existing.expiryDate).getTime() : 0;
-      const expiry = new Date(Math.max(paidUtc, existingExpiryMs));
+      const expiry = new Date(Math.max(nowMs, existingExpiryMs));
       expiry.setUTCDate(expiry.getUTCDate() + MEMBERSHIP_DAYS_PER_RECEIPT);
 
       const granted: Membership = {
         id: existing?.id ?? `mem-${userId}`,
         userId,
         status: 'active',
-        startDate: existing?.startDate ?? paidDate.toISOString(),
+        startDate: existing?.startDate ?? now.toISOString(),
         expiryDate: expiry.toISOString(),
         daysRemaining: daysBetween(nowMs, expiry.getTime()),
       };
 
-      // 7. Commit. The ledger is written first: if the second write fails the
+      // 6. Commit. The ledger is written first: if the second write fails the
       //    receipt is already spent, which refuses a replay rather than allowing
       //    one. We attempt to undo it so an honest user is not penalised, but a
       //    failed undo still errs toward refusal.
-      const trimmedLedger = [
-        { ref, studentNumber: receiptStudentNumber, redeemedAtIso: now.toISOString() },
+      // Keep all verification dates: without an age limit, dropping an entry
+      // would let an old payment extend access a second time.
+      const updatedLedger = [
+        { paymentDate: receipt.paymentDate, studentNumber: receiptStudentNumber, redeemedAtIso: now.toISOString() },
         ...ledger,
-      ].slice(0, RECEIPT_LEDGER_MAX_ENTRIES);
+      ];
 
-      await writeJson(SERVER_STATE_KEYS.RECEIPT_LEDGER, trimmedLedger);
+      await writeJson(SERVER_STATE_KEYS.RECEIPT_LEDGER, updatedLedger);
 
       try {
         await writeJson(SERVER_STATE_KEYS.MEMBERSHIP_RECORD, {

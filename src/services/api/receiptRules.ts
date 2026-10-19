@@ -11,42 +11,6 @@
  */
 import { isCalendarDate } from '../schemas';
 import { isStudentNumber } from '../../utils/studentNumber';
-import { canonicalReferenceId } from '../../utils/referenceId';
-
-/**
- * Canonical form of a receipt reference. Returns null when the value could
- * never be a real reference, so a malformed ID is refused outright rather than
- * being stored as a novel ledger entry that a variant spelling could dodge.
- */
-export function normalizeReferenceId(raw: string | undefined | null): string | null {
-  return canonicalReferenceId(raw);
-}
-
-/** Characters OCR commonly reads interchangeably, folded to one representative. */
-const OCR_CONFUSABLES: Record<string, string> = {
-  O: '0',
-  Q: '0',
-  I: '1',
-  L: '1',
-  S: '5',
-  B: '8',
-  Z: '2',
-};
-
-/**
- * Key used to identify repeat verification of a reference by the same student.
- *
- * The reference is read by OCR, so two photos of one receipt can spell it
- * differently ("RCP-482913" / "RCP482913", "O" / "0"). Comparing canonical
- * strings would treat each misreading as a fresh receipt. Dropping dashes and
- * folding confusable characters makes those variants return the existing
- * membership. Different students may verify the same key independently.
- */
-export function referenceReplayKey(canonical: string): string {
-  return canonical
-    .replace(/-/g, '')
-    .replace(/[OQILSBZ]/g, (char) => OCR_CONFUSABLES[char]);
-}
 
 /**
  * Canonical form of a person's name: Unicode-stable, case-folded, with internal
@@ -78,17 +42,12 @@ export function normalizeStudentNumber(raw: string | undefined | null): string |
  *
  * Only this one format is accepted. Handing the string to `new Date()` would
  * also accept locale-dependent forms such as "09/27/2026" whose meaning varies
- * by engine and timezone, which makes the freshness window unpredictable.
+ * by engine and timezone.
  */
 export function parseCalendarDateUtc(raw: string | undefined | null): number | null {
   if (!isCalendarDate(raw)) return null;
   const [year, month, day] = raw.split('-').map(Number);
   return Date.UTC(year, month - 1, day);
-}
-
-/** Whole-day difference between two UTC-midnight timestamps. */
-export function utcDayDiff(laterUtcMs: number, earlierUtcMs: number): number {
-  return Math.round((laterUtcMs - earlierUtcMs) / 86_400_000);
 }
 
 /** Today at UTC midnight, for comparing against a calendar date. */

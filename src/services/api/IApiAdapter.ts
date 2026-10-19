@@ -47,7 +47,7 @@ export interface IApiAdapter {
    *
    * This is the single authority on whether a receipt grants access. The
    * implementation owns the per-student verification ledger, the ownership check, the
-   * freshness window and the resulting expiry date; callers must treat the
+   * payment-date validation and the resulting expiry date; callers must treat the
    * returned membership as fact and must not recompute any of it.
    *
    * `context.boundStudentNumber` is null during first-time onboarding, in which

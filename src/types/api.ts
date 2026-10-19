@@ -5,7 +5,6 @@ export interface ReceiptData {
   studentName?: string;
   studentNumber?: string; // digits only, e.g. "23141035"
   paymentDate?: string;   // YYYY-MM-DD
-  referenceId?: string;
 }
 
 /**
@@ -19,10 +18,7 @@ export type ReceiptRejectionCode =
   | 'INVALID_STUDENT_NUMBER'
   | 'NO_DATE'
   | 'INVALID_DATE'
-  | 'INVALID_REFERENCE'
   // Policy violations
-  | 'ALREADY_USED'
-  | 'DATE_EXPIRED'
   | 'FUTURE_DATE'
   | 'NAME_MISMATCH'
   | 'ID_MISMATCH'

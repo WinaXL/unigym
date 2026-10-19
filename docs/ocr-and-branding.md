@@ -4,7 +4,16 @@
 
 The text parser treated a clearly read date outside the seven-day payment window as an extraction failure. This also removed the date-prefixed İş Bankası reference. A receipt dated 7 October 2026 could therefore yield `NO_REFERENCE` on 19 October even when native recognition read the digits correctly. A regression reproduced this failure before the fix.
 
-Extraction now preserves valid printed calendar dates, including old or future ones, and their reference prefixes. Only impossible OCR dates are candidates for digit-confusion repair; ambiguous repairs are left for manual review. The adapter still applies the seven-day freshness rule. These particular receipt photos are twelve days old on 19 October, so successful recognition must lead to the proper date-validation result rather than an OCR error. No bank sequence is guessed or replaced.
+The current parser reads only the Açıklama cell's eight-digit student number
+followed by a Latin name, and the İşlem Tarihi payment date. Customer numbers,
+header labels, generic name labels and saved-profile hints cannot populate the
+identity. Positioned blocks and raw text are both checked; conflicting readings
+stay blank. Impossible date digits also stay blank instead of being repaired
+against a recent-date window. These cases continue to manual review.
+
+Reference extraction, reference UI/validation and the seven-day expiration rule
+have been removed. Valid past dates of any age can activate. Future dates remain
+invalid. See `workouts-and-receipts.md` for activation and repeat-verification rules.
 
 The installed `expo-ocr-kit@0.1.4` Android Gradle file declares `com.google.mlkit:text-recognition:16.0.1`, Google's bundled Latin model, not its dynamically downloaded Play Services alternative. The native module is registered in `expo-module.config.json`; failed recognition rejects its promise rather than silently returning a fabricated reference.
 
@@ -20,7 +29,11 @@ Google's dependency documentation: https://developers.google.com/ml-kit/vision/t
 
 ## Review behavior
 
-After selecting a receipt image, the verification form opens even when automatic OCR is unavailable, fails, finds no text, or cannot read the reference. Any extracted fields are retained. A localized inline notice explains what needs manual entry. The full reference and date are editable. The adapter remains responsible for identity, date, reference and membership validation.
+After selecting a receipt image, the three-field verification form opens even
+when automatic OCR is unavailable, fails, finds no text, or misses a required
+detail. Confidently extracted fields are retained. A localized inline notice
+explains manual entry. The adapter validates identity and payment date and owns
+the resulting membership entitlement. The sheet has bottom-inset padding.
 
 `[ReceiptOCR]` logs contain only engine availability, attempt/failure counts, recognized character count and the issue code. They never include receipt text, names, student numbers, references, or image URIs. These distinguish native failures from parsing failures in a standalone build.
 
@@ -36,6 +49,39 @@ Master artwork prompt:
 
 ## Verification and release
 
-Run `npm test`, `npx tsc --noEmit`, and `npx expo lint`. Regression cases cover old/future dates, native recognition failures, absent engine, empty text, partial field preservation and successful reference extraction. Native outcomes in those tests are controlled fixtures, not device OCR accuracy measurements.
+Run `npm test`, `npx tsc --noEmit`, and `npx expo lint`. Regression cases cover
+strict Açıklama extraction, header/customer-number rejection, old/future dates,
+native failures, partial review, reference-free activation, legacy migration,
+repeat verification, workout day counts and translations. Native outcomes in
+these tests are controlled fixtures, not device OCR accuracy measurements.
 
-A new native APK is required for the launcher assets; this app has no OTA update setup. Use `npx eas-cli@latest build --platform android --profile preview --non-interactive --no-wait` when preparing the next test build. Test both original photos and the manual reference/date fields on an installed Android APK. The no-wait flag returns the build page after submission without waiting for the artifact.
+A new APK is required to test these changes on a phone because this app has no
+OTA update setup. No EAS build is part of this code-only update. On the next
+authorized build, test both original photos, manual entry and Android three-button
+navigation on a device.
+
+## Download filename
+
+`app.json` already sets the installed label to UniGym. EAS's hosted application
+archive URL/HTTP download name is separate from that label. Changing the app name
+or `applicationArchivePath` does not configure its browser download filename.
+Use a named GitHub release asset for the shared browser download:
+
+```powershell
+npm run preview:publish -- C:/path/to/finished.apk preview-<version> <full-source-commit-sha> --dry-run
+# Remove --dry-run only when ready to publish that already-built APK.
+```
+
+The helper copies the existing archive to `UniGym.apk`, validates arguments, and
+uses the authenticated `gh` CLI to create a prerelease at the supplied source
+commit. It never builds, polls EAS, replaces an existing release or modifies the
+APK contents/signature. Share the resulting GitHub `UniGym.apk` asset link;
+direct EAS downloads may still have `application-...apk` names. No release is
+published as part of this code-only task.
+
+Configuration reference: https://docs.expo.dev/eas/json/#android-specific-options
+GitHub release assets: https://docs.github.com/en/rest/releases/assets
+
+If an earlier scan already bound the wrong identity (such as a customer number),
+use Profile → Reset Device Profile and confirm the corrected details on a new
+scan. Saved identities are not silently rewritten by OCR.

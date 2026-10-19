@@ -79,25 +79,20 @@
     "confirmationTitle": "Makbuz Bilgilerini Doğrulayın",
     "confirmationSubtitle": "Makbuzdan okunan bilgileri kontrol edin ve eksik olanları doldurun",
     "confirmAndActivate": "Doğrula ve Aktive Et",
-    "referenceIdHint": "Tarih ve ayırıcılar dahil makbuzdaki referansın tamamını yazın. Otomatik okunan değeri düzeltebilirsiniz.",
     "reviewManuallyTitle": "Makbuz bilgilerini tamamlayın",
     "reviewOcrUnavailable": "Otomatik tarama bu uygulamada kullanılamıyor. Devam etmek için makbuz bilgilerini aşağıya girin.",
     "reviewUnreadable": "Görüntü otomatik olarak okunamadı. Makbuz bilgilerini aşağıya girin veya doğrulayın.",
     "reviewNoText": "Metin bulunamadı. Devam etmek için makbuz bilgilerini aşağıya girin.",
-    "reviewNoReference": "Referans numarası okunamadı. Makbuzdaki tam referansı girin ve diğer bilgileri kontrol edin.",
     "studentNamePlaceholder": "Makbuzda yazdığı gibi",
     "studentNumberPlaceholder": "örn. 23141035",
     "errorAnotherStudent": "Bu makbuz başka bir öğrenciye aittir",
-    "errorAlreadyUsed": "Bu makbuz daha önce kullanılmıştır",
     "errorNameMismatch": "Makbuzdaki isim profilinizle eşleşmiyor",
-    "errorDateExpired": "Makbuz tarihi çok eski — son 7 gün içinde olmalı",
     "errorFutureDate": "Makbuz tarihi gelecekte",
     "errorNoDate": "Ödeme tarihi algılanamadı — makbuzu düz tutun",
     "errorInvalidDate": "Ödeme tarihi YYYY-AA-GG biçiminde olmalı",
     "errorNoName": "Makbuzdaki öğrenci adı algılanamadı",
     "errorNoStudentNumber": "Makbuzdaki öğrenci numarası algılanamadı",
     "errorInvalidStudentNumber": "Öğrenci numarası 6–12 haneli olmalıdır (örn. 23141035)",
-    "errorInvalidReference": "Tam makbuz referansını harf, rakam, nokta, eğik çizgi veya tire kullanarak girin (4–32 karakter).",
     "errorLedgerUnavailable": "Doğrulama geçici olarak kullanılamıyor, bu makbuz etkinleştirilmedi. Lütfen tekrar deneyin.",
     "errorNotReady": "Profiliniz hâlâ yükleniyor — lütfen birazdan tekrar deneyin.",
     "errorInProgress": "Bir makbuz hâlihazırda doğrulanıyor.",
@@ -110,11 +105,11 @@
     "studentName": "Öğrenci Adı",
     "studentNumber": "Öğrenci Numarası",
     "paymentDate": "Ödeme Tarihi (YYYY-AA-GG)",
-    "referenceId": "Referans No",
     "verifyReceipt": "Doğrula ve Aktive Et",
     "retake": "Yeniden Çek / Yükle",
     "errorOcrUnreadable": "Bu görüntü okunamadı. Daha net ve iyi aydınlatılmış bir fotoğrafla tekrar deneyin.",
-    "errorOcrNoText": "Bu görüntüde metin bulunamadı. Makbuzun tamamının kadrajda ve net olduğundan emin olun."
+    "errorOcrNoText": "Bu görüntüde metin bulunamadı. Makbuzun tamamının kadrajda ve net olduğundan emin olun.",
+    "reviewIncomplete": "Bazı makbuz bilgileri okunamadı. Açıklama alanındaki 8 haneli öğrenci numarasını ve Latin harfli adı girin, ödeme tarihini kontrol edin."
   },
   "security": {
     "lockedTitle": "UniGym kilitli",
@@ -286,6 +281,10 @@
         "name": "Kuvvet · Tüm vücut",
         "description": "Ana kas grupları için 3 dengeli antrenman."
       }
-    }
+    },
+    "selectMoreDays": "Devam etmek için {{count}} gün daha seçin",
+    "daysSelected": "{{count}} antrenman günü seçildi. Değiştirmek için bir günün seçimini kaldırın.",
+    "selectMoreDays_one": "Devam etmek için {{count}} gün daha seçin",
+    "selectMoreDays_other": "Devam etmek için {{count}} gün daha seçin"
   }
 }

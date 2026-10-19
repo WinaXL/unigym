@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Pressable, Modal, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useLocaleStore } from '../../stores/localeStore';
@@ -17,6 +18,7 @@ import { Typography, Spacing, BorderRadius } from '../../theme';
 export function LanguageSwitcher() {
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const language = useLocaleStore((s) => s.language);
   const [open, setOpen] = useState(false);
 
@@ -43,7 +45,7 @@ export function LanguageSwitcher() {
         animationType="fade"
         onRequestClose={() => setOpen(false)}
       >
-        <View style={styles.backdrop}>
+        <View style={[styles.backdrop, { paddingTop: Spacing[6] + insets.top, paddingBottom: Spacing[6] + insets.bottom }]}>
           {/* A sibling, not a wrapper: an accessible parent would hide the
               sheet's options from VoiceOver. */}
           <Pressable

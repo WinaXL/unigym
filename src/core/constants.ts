@@ -66,15 +66,5 @@ export const SENSITIVE_KEYS: readonly string[] = [
 // Pagination
 export const PAGE_SIZE = 20;
 
-/** Maximum allowed receipt age, in whole days, enforced server-side. */
-export const MAX_RECEIPT_AGE_DAYS = 7;
-
 /** Days of access granted per redeemed receipt. */
 export const MEMBERSHIP_DAYS_PER_RECEIPT = 30;
-
-/**
- * Cap on the spent-receipt ledger. Old entries roll off so the ledger cannot
- * grow without bound; the window is far longer than MAX_RECEIPT_AGE_DAYS, so a
- * rolled-off entry can never be replayed (its payment date is long expired).
- */
-export const RECEIPT_LEDGER_MAX_ENTRIES = 500;

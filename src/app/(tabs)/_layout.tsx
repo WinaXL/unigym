@@ -1,6 +1,7 @@
 // app/(tabs)/_layout.tsx
 import { Tabs } from 'expo-router';
-import { Platform, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +17,7 @@ function TabIcon({
 }: {
   name: IoniconName;
   focused: boolean;
-  color: string | any;
+  color: React.ComponentProps<typeof Ionicons>['color'];
 }) {
   return (
     <View style={focused ? styles.activeIconContainer : undefined}>
@@ -29,6 +30,7 @@ export default function TabsLayout() {
   useWorkoutRuntime();
   const { t } = useTranslation();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -38,8 +40,9 @@ export default function TabsLayout() {
           backgroundColor: colors.tabBarBackground,
           borderTopColor: colors.tabBarBorder,
           borderTopWidth: StyleSheet.hairlineWidth,
-          height: Platform.OS === 'ios' ? 84 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          // Reserve room for both icon and label before the system inset.
+          height: 72 + insets.bottom,
+          paddingBottom: 10 + insets.bottom,
           paddingTop: 8,
         },
         tabBarActiveTintColor: colors.tabBarActive,
